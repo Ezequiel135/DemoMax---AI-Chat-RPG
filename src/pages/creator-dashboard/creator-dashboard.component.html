@@ -1,0 +1,143 @@
+
+<div class="min-h-screen pb-24 bg-[#0F0E17] page-enter">
+  
+  <!-- Header -->
+  <div class="pt-8 px-6 pb-6 bg-gradient-to-b from-slate-900 to-[#0F0E17] border-b border-white/5">
+     <h1 class="text-2xl md:text-3xl font-black text-white font-tech uppercase tracking-wider mb-1">Estúdio</h1>
+     <p class="text-slate-400 text-xs md:text-sm">Gerencie suas criações.</p>
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4 mt-6">
+     
+     <!-- TABS -->
+     <div class="flex gap-4 mb-6 border-b border-white/5 pb-1 overflow-x-auto">
+        <button (click)="activeTab.set('chars')" 
+                class="pb-3 px-2 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap"
+                [class.text-pink-500]="activeTab() === 'chars'"
+                [class.border-pink-500]="activeTab() === 'chars'"
+                [class.text-slate-500]="activeTab() !== 'chars'"
+                [class.border-transparent]="activeTab() !== 'chars'">
+           Personagens
+        </button>
+        <button (click)="activeTab.set('novels')" 
+                class="pb-3 px-2 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap"
+                [class.text-cyan-500]="activeTab() === 'novels'"
+                [class.border-cyan-500]="activeTab() === 'novels'"
+                [class.text-slate-500]="activeTab() !== 'novels'"
+                [class.border-transparent]="activeTab() !== 'novels'">
+           Visual Novels
+        </button>
+        <button (click)="activeTab.set('webnovels')" 
+                class="pb-3 px-2 text-sm font-bold uppercase tracking-wider transition-colors border-b-2 whitespace-nowrap"
+                [class.text-emerald-500]="activeTab() === 'webnovels'"
+                [class.border-emerald-500]="activeTab() === 'webnovels'"
+                [class.text-slate-500]="activeTab() !== 'webnovels'"
+                [class.border-transparent]="activeTab() !== 'webnovels'">
+           Web Novels (Livros)
+        </button>
+     </div>
+
+     <!-- CREATE BUTTON (Compact) -->
+     <div (click)="createNew()" class="mb-6 p-4 rounded-2xl border-2 border-dashed border-white/10 hover:border-white/30 hover:bg-white/5 cursor-pointer flex items-center justify-center gap-3 transition-all group">
+        <div class="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-lg group-hover:scale-110 transition-transform">+</div>
+        <span class="font-bold text-white text-sm">
+           @if(activeTab() === 'chars') { Criar Personagem }
+           @else if(activeTab() === 'novels') { Criar Visual Novel }
+           @else { Escrever Web Novel }
+        </span>
+     </div>
+
+     <!-- LIST AS GRID (2 Columns) -->
+     <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        
+        <!-- CHARACTERS GRID -->
+        @if (activeTab() === 'chars') {
+           @for (char of myCharacters(); track char.id) {
+              <div class="bg-slate-900 border border-white/5 rounded-2xl overflow-hidden flex flex-col relative group hover:border-pink-500/30 transition-colors">
+                 
+                 <!-- Image Area -->
+                 <div class="aspect-square relative cursor-pointer" (click)="triggerUpload(char.id)">
+                    <img [src]="char.avatarUrl" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                       <span class="text-[10px] text-white font-bold bg-black/50 px-2 py-1 rounded">📷 Mudar Foto</span>
+                    </div>
+                    <input type="file" [id]="'file-'+char.id" class="hidden" accept="image/*" (change)="onImageSelected($event, char, 'char')">
+                 </div>
+
+                 <!-- Content Area -->
+                 <div class="p-3 flex flex-col flex-1">
+                    <h3 class="font-bold text-white text-xs truncate mb-0.5">{{ char.name }}</h3>
+                    <p class="text-[10px] text-slate-500 truncate mb-2">{{ char.tagline }}</p>
+                    
+                    <div class="mt-auto flex gap-1">
+                       <button [routerLink]="['/chat', char.id]" class="flex-1 bg-slate-800 hover:bg-slate-700 py-1.5 rounded text-[10px] text-white font-bold">Chat</button>
+                       <button (click)="deleteItem(char.id)" class="px-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded">🗑️</button>
+                    </div>
+                 </div>
+              </div>
+           }
+        }
+
+        <!-- NOVELS GRID -->
+        @if (activeTab() === 'novels') {
+           @for (vn of myNovels(); track vn.id) {
+              <div class="bg-slate-900 border border-white/5 rounded-2xl overflow-hidden flex flex-col relative group hover:border-cyan-500/30 transition-colors">
+                 
+                 <!-- Cover Edit -->
+                 <div class="aspect-[3/4] relative cursor-pointer" (click)="triggerUpload(vn.id)">
+                    <img [src]="vn.coverUrl" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                       <span class="text-[10px] text-white font-bold bg-black/50 px-2 py-1 rounded">📷 Mudar Capa</span>
+                    </div>
+                    <input type="file" [id]="'file-'+vn.id" class="hidden" accept="image/*" (change)="onImageSelected($event, vn, 'novel')">
+                 </div>
+
+                 <!-- Content -->
+                 <div class="p-3 flex flex-col flex-1">
+                    <h3 class="font-bold text-white text-xs truncate mb-0.5">{{ vn.title }}</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                       <span class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{{ vn.scenes.length }} Cenas</span>
+                    </div>
+                    
+                    <div class="mt-auto flex gap-1">
+                       <button [routerLink]="['/vn/edit', vn.id]" class="flex-1 bg-cyan-600 hover:bg-cyan-500 py-1.5 rounded text-[10px] text-white font-bold">Editar</button>
+                       <button (click)="deleteItem(vn.id)" class="px-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded">🗑️</button>
+                    </div>
+                 </div>
+              </div>
+           }
+        }
+
+        <!-- WEB NOVELS GRID -->
+        @if (activeTab() === 'webnovels') {
+           @for (wn of myWebNovels(); track wn.id) {
+              <div class="bg-slate-900 border border-white/5 rounded-2xl overflow-hidden flex flex-col relative group hover:border-emerald-500/30 transition-colors">
+                 
+                 <!-- Cover Edit -->
+                 <div class="aspect-[2/3] relative cursor-pointer" (click)="triggerUpload(wn.id)">
+                    <img [src]="wn.coverUrl" class="w-full h-full object-cover group-hover:opacity-80 transition-opacity">
+                    <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/40">
+                       <span class="text-[10px] text-white font-bold bg-black/50 px-2 py-1 rounded">📷 Mudar Capa</span>
+                    </div>
+                    <input type="file" [id]="'file-'+wn.id" class="hidden" accept="image/*" (change)="onImageSelected($event, wn, 'web_novel')">
+                 </div>
+
+                 <!-- Content -->
+                 <div class="p-3 flex flex-col flex-1">
+                    <h3 class="font-bold text-white text-xs truncate mb-0.5">{{ wn.title }}</h3>
+                    <div class="flex items-center gap-2 mb-2">
+                       <span class="text-[9px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400">{{ wn.chapters.length }} Capítulos</span>
+                    </div>
+                    
+                    <div class="mt-auto flex gap-1">
+                       <button [routerLink]="['/novel/edit', wn.id]" class="flex-1 bg-emerald-600 hover:bg-emerald-500 py-1.5 rounded text-[10px] text-white font-bold">Escrever</button>
+                       <button (click)="deleteItem(wn.id)" class="px-2 bg-red-500/10 hover:bg-red-500/20 text-red-500 rounded">🗑️</button>
+                    </div>
+                 </div>
+              </div>
+           }
+        }
+
+     </div>
+  </div>
+</div>

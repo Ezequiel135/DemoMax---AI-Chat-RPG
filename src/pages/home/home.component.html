@@ -1,0 +1,227 @@
+
+<!-- NO HEADER COMPONENT HERE - Custom Layout -->
+<div class="min-h-screen pb-24 bg-slate-50 dark:bg-[#0F0E17] page-enter transition-colors duration-500">
+  
+  <!-- 1. TOP AREA: SEARCH & PROFILE -->
+  <div class="sticky top-0 z-40 bg-white/95 dark:bg-[#0F0E17]/95 backdrop-blur-xl border-b border-slate-200 dark:border-white/5 pb-2 transition-colors duration-500">
+     <div class="px-4 pt-4 pb-2 flex items-center gap-4">
+        <!-- Search Bar -->
+        <div class="relative flex-1">
+           <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 text-slate-400 dark:text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
+           </div>
+           <input [(ngModel)]="searchQuery" 
+                  class="w-full bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-full py-2.5 pl-10 pr-4 text-sm text-slate-900 dark:text-white placeholder-slate-500 focus:outline-none focus:border-pink-500 focus:ring-1 focus:ring-pink-500 transition-all"
+                  placeholder="Buscar...">
+        </div>
+
+        <!-- Mini Profile Pic -->
+        <a routerLink="/profile" class="w-10 h-10 rounded-full overflow-hidden border border-slate-200 dark:border-white/20">
+           <img src="https://i.ibb.co/hxSz0SJr/Background-Eraser-20251224-125356967.png" class="w-full h-full object-cover">
+        </a>
+     </div>
+
+     <!-- CATEGORY TABS (Scrollable) -->
+     @if (!searchQuery()) {
+       <div class="flex gap-2 overflow-x-auto px-4 pb-2 scrollbar-hide">
+          <button (click)="setCategory('for_you')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-pink-600]="activeCategory() === 'for_you'"
+                  [class.text-white]="activeCategory() === 'for_you'"
+                  [class.border-transparent]="activeCategory() === 'for_you'"
+                  [class.bg-white]="activeCategory() !== 'for_you'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'for_you'"
+                  [class.text-slate-500]="activeCategory() !== 'for_you'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'for_you'"
+                  [class.border-slate-200]="activeCategory() !== 'for_you'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'for_you'">
+             Para Você
+          </button>
+          <button (click)="setCategory('recent')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-pink-600]="activeCategory() === 'recent'"
+                  [class.text-white]="activeCategory() === 'recent'"
+                  [class.border-transparent]="activeCategory() === 'recent'"
+                  [class.bg-white]="activeCategory() !== 'recent'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'recent'"
+                  [class.text-slate-500]="activeCategory() !== 'recent'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'recent'"
+                  [class.border-slate-200]="activeCategory() !== 'recent'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'recent'">
+             Mais Recente
+          </button>
+          <button (click)="setCategory('famous')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-pink-600]="activeCategory() === 'famous'"
+                  [class.text-white]="activeCategory() === 'famous'"
+                  [class.border-transparent]="activeCategory() === 'famous'"
+                  [class.bg-white]="activeCategory() !== 'famous'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'famous'"
+                  [class.text-slate-500]="activeCategory() !== 'famous'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'famous'"
+                  [class.border-slate-200]="activeCategory() !== 'famous'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'famous'">
+             Famosos
+          </button>
+          <button (click)="setCategory('characters')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-pink-600]="activeCategory() === 'characters'"
+                  [class.text-white]="activeCategory() === 'characters'"
+                  [class.border-transparent]="activeCategory() === 'characters'"
+                  [class.bg-white]="activeCategory() !== 'characters'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'characters'"
+                  [class.text-slate-500]="activeCategory() !== 'characters'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'characters'"
+                  [class.border-slate-200]="activeCategory() !== 'characters'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'characters'">
+             Personagens
+          </button>
+          <button (click)="setCategory('visual_novel')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-cyan-600]="activeCategory() === 'visual_novel'"
+                  [class.text-white]="activeCategory() === 'visual_novel'"
+                  [class.border-transparent]="activeCategory() === 'visual_novel'"
+                  [class.bg-white]="activeCategory() !== 'visual_novel'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'visual_novel'"
+                  [class.text-slate-500]="activeCategory() !== 'visual_novel'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'visual_novel'"
+                  [class.border-slate-200]="activeCategory() !== 'visual_novel'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'visual_novel'">
+             Visual Novels
+          </button>
+          <button (click)="setCategory('web_novel')" 
+                  class="px-4 py-1.5 rounded-full text-xs font-bold whitespace-nowrap transition-colors border"
+                  [class.bg-emerald-600]="activeCategory() === 'web_novel'"
+                  [class.text-white]="activeCategory() === 'web_novel'"
+                  [class.border-transparent]="activeCategory() === 'web_novel'"
+                  [class.bg-white]="activeCategory() !== 'web_novel'"
+                  [class.dark:bg-slate-900]="activeCategory() !== 'web_novel'"
+                  [class.text-slate-500]="activeCategory() !== 'web_novel'"
+                  [class.dark:text-slate-400]="activeCategory() !== 'web_novel'"
+                  [class.border-slate-200]="activeCategory() !== 'web_novel'"
+                  [class.dark:border-slate-800]="activeCategory() !== 'web_novel'">
+             Web Novels
+          </button>
+       </div>
+     }
+  </div>
+
+  <div class="max-w-5xl mx-auto px-4 mt-6">
+
+    @if (searchQuery()) {
+       <!-- SEARCH RESULTS -->
+       <h2 class="text-slate-900 dark:text-white font-bold mb-4">Resultados</h2>
+       <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+          @for (item of searchResults(); track $index) {
+             @if (item.type === 'char') {
+               <app-character-card [character]="item.data"></app-character-card>
+             } @else if (item.type === 'novel') {
+               <!-- VN Card -->
+               <a [routerLink]="['/vn/play', item.data.id]" class="relative aspect-[3/4] rounded-2xl overflow-hidden group block border border-slate-200 dark:border-white/10">
+                  <img [src]="item.data.coverUrl" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110">
+                  <div class="absolute inset-0 bg-gradient-to-t from-black via-black/20 to-transparent flex flex-col justify-end p-3">
+                     <span class="text-[9px] bg-cyan-500 text-white px-1.5 py-0.5 rounded w-fit mb-1 font-bold">VN</span>
+                     <h3 class="text-white font-bold text-sm leading-tight">{{ item.data.title }}</h3>
+                  </div>
+               </a>
+             } @else {
+               <!-- Web Novel Card -->
+               <a [routerLink]="['/novel/read', item.data.id]" class="relative aspect-[2/3] rounded-xl overflow-hidden group block border border-emerald-500/30">
+                  <img [src]="item.data.coverUrl" class="w-full h-full object-cover">
+                  <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent flex flex-col justify-end p-3">
+                     <span class="text-[9px] bg-emerald-600 text-white px-1.5 py-0.5 rounded w-fit mb-1 font-bold">BOOK</span>
+                     <h3 class="text-white font-bold text-sm leading-tight">{{ item.data.title }}</h3>
+                  </div>
+               </a>
+             }
+          }
+       </div>
+
+    } @else {
+
+       <!-- CONTINUE (Recents) -->
+       @if (activityService.recent().length > 0 && activeCategory() === 'for_you') {
+         <section class="mb-8">
+            <h2 class="text-lg font-bold text-slate-800 dark:text-white mb-3 flex items-center gap-2">
+               <span class="text-pink-500">▶</span> Continuar
+            </h2>
+            
+            <div class="flex gap-4 overflow-x-auto pb-4 snap-x scrollbar-hide">
+               @for (activity of activityService.recent(); track activity.id) {
+                  <button (click)="navigateToItem(activity)" 
+                          class="snap-start flex-shrink-0 w-64 bg-white dark:bg-slate-900 border border-slate-200 dark:border-white/10 rounded-2xl p-3 flex items-center gap-3 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors text-left group shadow-sm">
+                     <div class="w-12 h-12 rounded-full overflow-hidden border border-slate-100 dark:border-white/10 flex-shrink-0">
+                        <img [src]="activity.image" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
+                     </div>
+                     <div class="min-w-0">
+                        <div class="text-xs font-bold text-slate-400 uppercase mb-0.5 tracking-wider">{{ activity.type === 'chat' ? 'Conversa' : 'Leitura' }}</div>
+                        <h3 class="text-slate-800 dark:text-white font-bold text-sm truncate">{{ activity.title }}</h3>
+                        <p class="text-xs text-slate-500 truncate">{{ activity.subtitle }}</p>
+                     </div>
+                  </button>
+               }
+            </div>
+         </section>
+       }
+
+       <!-- MAIN FEED (Mixed Grid) -->
+       <section>
+          
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+             @for (item of feed(); track $index) {
+                
+                <!-- Character Card -->
+                @if (item.type === 'char') {
+                   <app-character-card [character]="item.data"></app-character-card>
+                }
+                
+                <!-- Visual Novel Card -->
+                @if (item.type === 'novel') {
+                   <a [routerLink]="['/vn/play', item.data.id]" class="relative aspect-[3/4] rounded-[2rem] overflow-hidden group block border border-slate-200 dark:border-white/10 shadow-lg cursor-pointer">
+                      <img [src]="item.data.coverUrl" class="w-full h-full object-cover transition-transform duration-500 group-hover:scale-110 group-hover:rotate-1">
+                      <div class="absolute inset-0 bg-gradient-to-t from-slate-900 via-transparent to-transparent opacity-90"></div>
+                      
+                      <div class="absolute bottom-0 left-0 right-0 p-4">
+                         <div class="flex items-center gap-2 mb-2">
+                            <span class="text-[9px] font-black bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 px-2 py-0.5 rounded backdrop-blur-sm uppercase tracking-wider">VISUAL NOVEL</span>
+                         </div>
+                         <h3 class="text-white font-bold text-lg leading-tight mb-1 group-hover:text-cyan-200 transition-colors">{{ item.data.title }}</h3>
+                         <p class="text-xs text-slate-400 line-clamp-2">{{ item.data.description }}</p>
+                      </div>
+                      
+                      <!-- Play Icon Hover -->
+                      <div class="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/20 backdrop-blur-[1px]">
+                         <div class="w-12 h-12 rounded-full bg-white text-black flex items-center justify-center shadow-xl transform scale-0 group-hover:scale-100 transition-transform">
+                            <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 ml-1" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM9.555 7.168A1 1 0 008 8v4a1 1 0 001.555.832l3-2a1 1 0 000-1.664l-3-2z" clip-rule="evenodd" /></svg>
+                         </div>
+                      </div>
+                   </a>
+                }
+
+                <!-- Web Novel Card -->
+                @if (item.type === 'web_novel') {
+                   <a [routerLink]="['/novel/read', item.data.id]" class="relative aspect-[2/3] rounded-xl overflow-hidden group block border border-slate-200 dark:border-emerald-500/20 shadow-md cursor-pointer bg-white dark:bg-slate-900">
+                      <img [src]="item.data.coverUrl" class="w-full h-full object-cover opacity-95 group-hover:opacity-100 transition-opacity">
+                      <div class="absolute inset-0 bg-gradient-to-t from-black via-transparent to-transparent"></div>
+                      
+                      <div class="absolute top-2 right-2 bg-emerald-600 text-white text-[8px] font-bold px-2 py-1 rounded shadow">
+                         WEB NOVEL
+                      </div>
+
+                      <div class="absolute bottom-0 left-0 right-0 p-3">
+                         <h3 class="text-white font-bold text-sm leading-tight mb-1 line-clamp-2">{{ item.data.title }}</h3>
+                         <div class="flex items-center justify-between text-[10px] text-slate-300">
+                            <span>{{ item.data.readCount }} Leituras</span>
+                            <span>{{ item.data.chapters.length }} Caps</span>
+                         </div>
+                      </div>
+                   </a>
+                }
+
+             }
+          </div>
+       </section>
+
+    }
+  </div>
+</div>

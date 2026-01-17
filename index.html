@@ -1,0 +1,110 @@
+
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="utf-8">
+  <title>DemoMax</title>
+  <base href="/">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=0">
+  <link rel="icon" type="image/png" href="https://i.ibb.co/hxSz0SJr/Background-Eraser-20251224-125356967.png">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Quicksand for "Cute/Human" text, Rajdhani kept only for numbers/tech specs -->
+  <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      transition: background-color 0.5s ease, color 0.5s ease;
+    }
+
+    /* === MODO CLARO (Cotton Candy) === */
+    :root:not(.dark) {
+      --bg-main: #FFF0F5; /* Lavender Blush */
+      --bg-card: rgba(255, 255, 255, 0.6);
+      --accent: #FF69B4;
+      --text-main: #4A4A4A;
+    }
+
+    /* === MODO ESCURO (Midnight Dream) - Less "Cyber", More "Cozy" === */
+    .dark {
+      --bg-main: #0F0E17; /* Deep Organic Dark, not Gray */
+      --bg-card: rgba(30, 27, 46, 0.6); /* Violet-tinted dark glass */
+      --accent: #FF7EB6;
+      --text-main: #FFFFFE;
+    }
+    
+    body {
+      font-family: 'Quicksand', sans-serif; /* Friendly font */
+      background-color: var(--bg-main);
+      color: var(--text-main);
+      overflow-x: hidden;
+      -webkit-font-smoothing: antialiased;
+    }
+    
+    .font-tech {
+      font-family: 'Rajdhani', sans-serif;
+      letter-spacing: 0.05em;
+    }
+
+    /* Modern Glass Panel (Frosted) */
+    .glass-panel {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+    }
+
+    /* Cute/Professional Card Hover */
+    .glass-card-hover {
+      transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1); /* Bouncy */
+    }
+    .glass-card-hover:hover {
+      transform: translateY(-6px) scale(1.02);
+      box-shadow: 0 20px 40px -10px rgba(255, 105, 180, 0.2);
+      border-color: rgba(255, 105, 180, 0.3);
+    }
+
+    /* Custom Scrollbar - Minimalist */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb { background: rgba(150, 150, 150, 0.2); border-radius: 10px; }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+    /* Animations */
+    .page-enter { animation: floatUp 0.6s cubic-bezier(0.2, 0.8, 0.2, 1) forwards; }
+    
+    @keyframes floatUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .btn-bounce:active { transform: scale(0.92); }
+    
+    /* Utilities */
+    .text-glow { text-shadow: 0 0 20px rgba(255, 105, 180, 0.5); }
+    .pb-safe { padding-bottom: env(safe-area-inset-bottom, 20px); }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "rxjs": "https://esm.sh/rxjs@^7.8.2?conditions=es2015",
+    "rxjs/operators": "https://esm.sh/rxjs@^7.8.2/operators?conditions=es2015",
+    "rxjs/ajax": "https://esm.sh/rxjs@^7.8.2/ajax?conditions=es2015",
+    "rxjs/webSocket": "https://esm.sh/rxjs@^7.8.2/webSocket?conditions=es2015",
+    "rxjs/testing": "https://esm.sh/rxjs@^7.8.2/testing?conditions=es2015",
+    "rxjs/fetch": "https://esm.sh/rxjs@^7.8.2/fetch?conditions=es2015",
+    "@google/genai": "https://esm.sh/@google/genai@^1.36.0?external=rxjs",
+    "@angular/platform-browser": "https://esm.sh/@angular/platform-browser@^21.1.0?external=rxjs",
+    "@angular/forms": "https://esm.sh/@angular/forms@^21.1.0?external=rxjs",
+    "@angular/core": "https://esm.sh/@angular/core@^21.1.0?external=rxjs",
+    "@angular/common": "https://esm.sh/@angular/common@^21.1.0?external=rxjs",
+    "@angular/compiler": "https://esm.sh/@angular/compiler@^21.1.0?external=rxjs",
+    "@angular/router": "https://esm.sh/@angular/router@^21.1.0?external=rxjs",
+    "@angular/core/rxjs-interop": "https://esm.sh/@angular/core@^21.1.0/rxjs-interop?external=rxjs"
+  }
+}
+</script>
+</head>
+<body>
+  <app-root></app-root>
+</body>
+</html>

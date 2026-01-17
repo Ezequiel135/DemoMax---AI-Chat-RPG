@@ -1,0 +1,386 @@
+
+<app-header></app-header>
+
+<div class="min-h-screen pt-4 pb-24 max-w-5xl mx-auto px-4 lg:px-8 page-enter">
+  
+  <!-- STEPPER (Modern & Cute) -->
+  <div class="mb-8 flex justify-between items-center relative px-4">
+    <!-- Progress Line Background -->
+    <div class="absolute left-4 right-4 top-1/2 h-1 bg-slate-800 rounded-full -z-10"></div>
+    <!-- Progress Line Fill -->
+    <div class="absolute left-4 top-1/2 h-1 bg-gradient-to-r from-pink-500 to-purple-500 rounded-full -z-10 transition-all duration-500"
+         [style.width.%]="(step() - 1) * 20"></div>
+
+    @for (s of [1, 2, 3, 4, 5, 6]; track s) {
+      <div class="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-110" 
+           (click)="s < step() ? step.set(s) : null">
+        <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-4 transition-all duration-300 bg-slate-900 shadow-xl"
+             [class.border-pink-500]="step() >= s"
+             [class.text-white]="step() >= s"
+             [class.border-slate-700]="step() < s"
+             [class.text-slate-500]="step() < s">
+           @if(step() > s) { ✓ } @else { {{s}} }
+        </div>
+        <span class="text-[10px] font-bold uppercase tracking-wider hidden sm:block bg-slate-900 px-2 rounded-full"
+              [class.text-pink-400]="step() >= s"
+              [class.text-slate-600]="step() < s">
+          @switch(s) {
+            @case(1) { Info }
+            @case(2) { Visual }
+            @case(3) { Intro }
+            @case(4) { Lore }
+            @case(5) { Chat }
+            @case(6) { Fim }
+          }
+        </span>
+      </div>
+    }
+  </div>
+
+  <!-- MAIN CARD CONTAINER -->
+  <div class="bg-slate-900/80 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[500px] flex flex-col relative">
+    
+    <!-- Decorative Blobs -->
+    <div class="absolute top-0 right-0 w-64 h-64 bg-pink-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+    <div class="absolute bottom-0 left-0 w-64 h-64 bg-purple-500/10 rounded-full blur-[80px] pointer-events-none"></div>
+
+    <div class="flex-1 p-6 md:p-10 relative z-10">
+
+      <!-- STEP 1: IDENTITY -->
+      @if (step() === 1) {
+        <div class="animate-fade-in space-y-8">
+          <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b border-white/5 pb-4">
+             <div>
+               <h2 class="text-3xl font-bold text-white mb-1">Quem é esse personagem?</h2>
+               <p class="text-slate-400">Defina a identidade básica e o nível de conteúdo.</p>
+             </div>
+             
+             <!-- Cute Toggle for NSFW -->
+             <label class="cursor-pointer group">
+               <div class="flex items-center gap-3 bg-slate-950/50 p-2 pr-4 rounded-full border border-slate-700 group-hover:border-slate-500 transition-colors">
+                  <div class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+                       [class.bg-slate-800]="!draft.isNSFW"
+                       [class.bg-red-500]="draft.isNSFW"
+                       [class.text-white]="draft.isNSFW">
+                     {{ draft.isNSFW ? '18+' : '12+' }}
+                  </div>
+                  <div class="flex flex-col">
+                     <span class="text-xs font-bold text-white uppercase">{{ draft.isNSFW ? 'Adulto' : 'Seguro' }}</span>
+                     <span class="text-[10px] text-slate-500">Conteúdo Sensível</span>
+                  </div>
+                  <input type="checkbox" [(ngModel)]="draft.isNSFW" class="hidden">
+               </div>
+             </label>
+          </div>
+
+          <div class="grid md:grid-cols-2 gap-6">
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Nome Completo</label>
+              <input [(ngModel)]="draft.name" placeholder="Ex: Alice Wonderland" class="cute-input">
+            </div>
+            <div class="space-y-2">
+              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Título / Tagline</label>
+              <input [(ngModel)]="draft.tagline" placeholder="Ex: A Aventureira Perdida" class="cute-input">
+            </div>
+          </div>
+
+          <div class="space-y-2">
+            <label class="text-xs font-bold text-slate-400 uppercase ml-2">Descrição Curta</label>
+            <textarea [(ngModel)]="draft.description" rows="3" placeholder="Um resumo rápido que aparece no card do personagem..." class="cute-input resize-none"></textarea>
+          </div>
+
+          <!-- Age Confirmation Checkbox -->
+          <div class="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer" (click)="ageConfirmed = !ageConfirmed">
+             <div class="w-6 h-6 rounded-lg border-2 border-slate-500 flex items-center justify-center" [class.bg-pink-500]="ageConfirmed" [class.border-pink-500]="ageConfirmed">
+                <svg *ngIf="ageConfirmed" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
+             </div>
+             <p class="text-sm text-slate-300 select-none">Eu confirmo que este personagem tem 18+ anos e segue as diretrizes.</p>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 2: VISUAL (UPDATED WITH STYLES) -->
+      @if (step() === 2) {
+        <div class="animate-fade-in h-full flex flex-col">
+          <div class="mb-6">
+             <h2 class="text-3xl font-bold text-white mb-1">Aparência Visual</h2>
+             <p class="text-slate-400">Escolha o estilo artístico e descreva.</p>
+          </div>
+
+          <div class="flex flex-col md:flex-row gap-8 items-start h-full">
+             
+             <!-- Preview Box -->
+             <div class="w-full md:w-72 flex-shrink-0">
+                <div class="aspect-[3/4] rounded-[2rem] overflow-hidden bg-slate-950 border-4 border-slate-800 relative group shadow-2xl">
+                   <img [src]="draft.avatarUrl" class="w-full h-full object-cover">
+                   <div class="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center gap-2">
+                      <span class="text-white font-bold text-sm">Preview</span>
+                   </div>
+                </div>
+             </div>
+
+             <!-- Generator -->
+             <div class="flex-1 w-full space-y-6">
+                
+                <!-- Style Selector (Grid like screenshots) -->
+                <div>
+                   <label class="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Estilo da Imagem</label>
+                   <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
+                      @for (style of stylesList; track style.id) {
+                         <div (click)="selectedStyle.set(style.id)"
+                              class="aspect-[4/5] rounded-xl overflow-hidden cursor-pointer relative border-2 transition-all group"
+                              [class.border-pink-500]="selectedStyle() === style.id"
+                              [class.border-transparent]="selectedStyle() !== style.id"
+                              [class.scale-105]="selectedStyle() === style.id">
+                            <!-- In a real app these would be style previews, using picsum for now -->
+                            <img [src]="style.img" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
+                            <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors"></div>
+                            <div class="absolute bottom-0 left-0 right-0 p-1 text-[9px] font-bold text-white text-center bg-black/60 backdrop-blur-sm">
+                               {{ style.name }}
+                            </div>
+                         </div>
+                      }
+                   </div>
+                </div>
+
+                <!-- Prompt Input -->
+                <div class="bg-slate-800/50 p-5 rounded-3xl border border-white/5">
+                   <div class="flex justify-between items-center mb-3">
+                      <h3 class="text-sm font-bold text-pink-400 uppercase tracking-wide">✨ Descreva o Personagem</h3>
+                   </div>
+                   <div class="space-y-3">
+                      <textarea [(ngModel)]="imagePrompt" rows="2" placeholder="Ex: Mulher elfa com cabelos prateados, olhos violeta, vestindo armadura dourada..." class="cute-input resize-none"></textarea>
+                      
+                      <button (click)="generateAvatar()" 
+                              [disabled]="isGenerating() || !imagePrompt"
+                              class="w-full py-3 bg-pink-600 rounded-xl flex items-center justify-center text-white hover:bg-pink-500 shadow-lg disabled:opacity-50 transition-all font-bold">
+                         <span *ngIf="!isGenerating()">🎨 Gerar Arte (Auto-Traduzido)</span>
+                         <span *ngIf="isGenerating()" class="animate-spin mr-2">↻</span>
+                         <span *ngIf="isGenerating()">Criando...</span>
+                      </button>
+                   </div>
+                </div>
+
+                <!-- Manual Upload -->
+                <div class="text-center">
+                   <label class="text-xs text-slate-500 hover:text-white cursor-pointer underline">
+                      Ou faça upload de uma imagem
+                      <input type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)">
+                   </label>
+                </div>
+
+             </div>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 3: INTRO (First Message) -->
+      @if (step() === 3) {
+        <div class="animate-fade-in space-y-6 h-full flex flex-col">
+          <div>
+             <h2 class="text-3xl font-bold text-white mb-1">Primeira Mensagem</h2>
+             <p class="text-slate-400">O quebra-gelo. Como o personagem inicia a conversa?</p>
+          </div>
+          
+          <div class="flex-1 relative group">
+             <!-- Chat Bubble Aesthetic -->
+             <div class="absolute -top-3 left-6 px-3 py-1 bg-pink-600 text-white text-[10px] font-bold rounded-full uppercase tracking-widest z-10 shadow-lg">
+                Mensagem Inicial
+             </div>
+             <textarea [(ngModel)]="firstMessage" 
+                       class="w-full h-full min-h-[300px] bg-slate-800/50 border-2 border-slate-700 rounded-[2rem] p-8 text-lg text-slate-200 focus:outline-none focus:border-pink-500/50 focus:bg-slate-800 transition-all resize-none shadow-inner leading-relaxed"
+                       placeholder="*Ela olha para você e sorri timidamente.* 'Olá... não esperava te ver por aqui.'"></textarea>
+             
+             <div class="absolute bottom-6 right-6 text-slate-500 text-xs">
+                Dica: Use *asteriscos* para ações e "aspas" para fala.
+             </div>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 4: LORE -->
+      @if (step() === 4) {
+        <div class="animate-fade-in space-y-6 h-full flex flex-col">
+          <div>
+             <h2 class="text-3xl font-bold text-white mb-1">Personalidade & Lore</h2>
+             <p class="text-slate-400">O cérebro do personagem. Defina traços, segredos e história.</p>
+          </div>
+          
+          <div class="flex-1 relative">
+             <textarea [(ngModel)]="draft.systemInstruction" 
+                       class="w-full h-full min-h-[350px] bg-slate-800/50 border-2 border-slate-700 rounded-[2rem] p-8 text-base text-slate-300 focus:outline-none focus:border-purple-500/50 focus:bg-slate-800 transition-all resize-none shadow-inner font-mono leading-relaxed custom-scroll"
+                       placeholder="[Nome] Alice
+[Personalidade] Curiosa, tímida, inteligente
+[Gosta] Livros, chá, gatos
+[Segredo] Ela é, na verdade, uma espiã..."></textarea>
+          </div>
+        </div>
+      }
+
+      <!-- STEP 5: TRAINING (Chat Style) -->
+      @if (step() === 5) {
+        <div class="animate-fade-in space-y-6 h-full flex flex-col">
+          <div class="flex justify-between items-end">
+             <div>
+               <h2 class="text-3xl font-bold text-white mb-1">Treinamento de Diálogo</h2>
+               <p class="text-slate-400">Ensine o estilo de fala com exemplos.</p>
+             </div>
+             <button (click)="addTrainingPair()" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-pink-400 rounded-xl font-bold text-sm transition-colors border border-slate-700">
+                + Novo Exemplo
+             </button>
+          </div>
+
+          <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6">
+             @for (pair of trainingPairs; track $index) {
+                <div class="relative group">
+                   <!-- Delete Button -->
+                   <button (click)="removeTrainingPair($index)" class="absolute -right-2 -top-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">✕</button>
+                   
+                   <!-- Chat Container -->
+                   <div class="bg-slate-950/30 p-4 rounded-[2rem] border border-slate-800 space-y-4">
+                      
+                      <!-- User Bubble (Right) -->
+                      <div class="flex justify-end">
+                         <div class="max-w-[85%]">
+                            <label class="text-[10px] text-slate-500 font-bold uppercase block text-right mb-1 mr-2">Usuário diz</label>
+                            <input [(ngModel)]="pair.q" class="w-full bg-slate-800 text-white px-4 py-3 rounded-2xl rounded-tr-sm border border-slate-700 focus:border-pink-500 outline-none text-right" placeholder="Oi, tudo bem?">
+                         </div>
+                      </div>
+
+                      <!-- Char Bubble (Left) -->
+                      <div class="flex justify-start">
+                         <div class="max-w-[85%] flex gap-3">
+                            <img [src]="draft.avatarUrl" class="w-10 h-10 rounded-full object-cover border border-slate-600 self-end mb-1">
+                            <div class="flex-1">
+                               <label class="text-[10px] text-pink-400 font-bold uppercase block mb-1 ml-2">Personagem Responde</label>
+                               <textarea [(ngModel)]="pair.a" rows="2" class="w-full bg-slate-800 text-white px-4 py-3 rounded-2xl rounded-tl-sm border border-slate-700 focus:border-pink-500 outline-none resize-none" placeholder="*Sorri.* Tudo ótimo!"></textarea>
+                            </div>
+                         </div>
+                      </div>
+
+                   </div>
+                </div>
+             }
+          </div>
+        </div>
+      }
+
+      <!-- STEP 6: FINALIZE -->
+      @if (step() === 6) {
+        <div class="animate-fade-in space-y-8">
+           <div class="text-center">
+             <h2 class="text-3xl font-bold text-white mb-2">Toques Finais</h2>
+             <p class="text-slate-400">Escolha a inteligência e monetize.</p>
+           </div>
+
+           <div class="grid md:grid-cols-2 gap-6">
+              
+              <!-- Model Card -->
+              <div class="bg-slate-800/30 p-6 rounded-[2rem] border border-white/5">
+                 <h3 class="font-bold text-white mb-4 flex items-center gap-2">🧠 Modelo de IA</h3>
+                 <div class="space-y-3">
+                    <div (click)="setModel('Standard')" 
+                         class="p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 hover:bg-slate-800"
+                         [class.border-pink-500]="draft.modelConfig === 'Standard'"
+                         [class.bg-pink-500_10]="draft.modelConfig === 'Standard'"
+                         [class.border-slate-700]="draft.modelConfig !== 'Standard'">
+                       <div class="w-4 h-4 rounded-full border-2 border-slate-500 flex items-center justify-center">
+                          <div class="w-2 h-2 rounded-full bg-pink-500" *ngIf="draft.modelConfig === 'Standard'"></div>
+                       </div>
+                       <div>
+                          <div class="font-bold text-white text-sm">Standard (Flash)</div>
+                          <div class="text-xs text-slate-400">Rápido e Equilibrado.</div>
+                       </div>
+                    </div>
+
+                    <div (click)="setModel('Deep Thought')" 
+                         class="p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 hover:bg-slate-800"
+                         [class.border-yellow-500]="draft.modelConfig === 'Deep Thought'"
+                         [class.bg-yellow-500_10]="draft.modelConfig === 'Deep Thought'"
+                         [class.border-slate-700]="draft.modelConfig !== 'Deep Thought'">
+                       <div class="w-4 h-4 rounded-full border-2 border-slate-500 flex items-center justify-center">
+                          <div class="w-2 h-2 rounded-full bg-yellow-500" *ngIf="draft.modelConfig === 'Deep Thought'"></div>
+                       </div>
+                       <div>
+                          <div class="font-bold text-white text-sm">Deep Thought</div>
+                          <div class="text-xs text-slate-400">Raciocínio complexo e lógico.</div>
+                       </div>
+                    </div>
+
+                    <div (click)="setModel('Creative')" 
+                         class="p-4 rounded-xl border-2 cursor-pointer transition-all flex items-center gap-3 hover:bg-slate-800"
+                         [class.border-blue-500]="draft.modelConfig === 'Creative'"
+                         [class.bg-blue-500_10]="draft.modelConfig === 'Creative'"
+                         [class.border-slate-700]="draft.modelConfig !== 'Creative'">
+                       <div class="w-4 h-4 rounded-full border-2 border-slate-500 flex items-center justify-center">
+                          <div class="w-2 h-2 rounded-full bg-blue-500" *ngIf="draft.modelConfig === 'Creative'"></div>
+                       </div>
+                       <div>
+                          <div class="font-bold text-white text-sm">Creative Ultra</div>
+                          <div class="text-xs text-slate-400">Imaginação máxima.</div>
+                       </div>
+                    </div>
+                 </div>
+              </div>
+
+              <!-- Extra Configs -->
+              <div class="space-y-6">
+                 <!-- Voice -->
+                 <div class="bg-slate-800/30 p-6 rounded-[2rem] border border-white/5">
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">🔊 Voz TTS</h3>
+                    <select [(ngModel)]="selectedVoice" class="cute-input w-full appearance-none cursor-pointer">
+                      <option value="Soft">Feminina Suave</option>
+                      <option value="Deep">Masculina Grave</option>
+                      <option value="Robot">Robótica</option>
+                      <option value="Narrator">Narrador</option>
+                    </select>
+                 </div>
+
+                 <!-- Donation -->
+                 <div class="bg-emerald-900/10 p-6 rounded-[2rem] border border-emerald-500/20">
+                    <h3 class="font-bold text-emerald-400 mb-2 flex items-center gap-2">💰 Doação (PIX)</h3>
+                    <p class="text-xs text-emerald-200/70 mb-3">Chave aleatória para receber presentes.</p>
+                    <input [(ngModel)]="draft.pixKey" placeholder="Chave Aleatória..." class="w-full bg-slate-900 border border-emerald-500/30 rounded-xl px-4 py-3 text-emerald-100 focus:border-emerald-400 outline-none">
+                 </div>
+              </div>
+           </div>
+        </div>
+      }
+
+    </div>
+
+    <!-- ACTION BAR (Bottom) -->
+    <div class="p-6 border-t border-white/5 flex justify-between items-center bg-slate-950/30 backdrop-blur-sm">
+       <button (click)="prevStep()" 
+               [disabled]="step() === 1"
+               class="px-6 py-3 rounded-xl text-slate-400 font-bold hover:text-white hover:bg-white/5 transition-colors disabled:opacity-0">
+          ← Voltar
+       </button>
+
+       @if (step() < 6) {
+          <button (click)="nextStep()" 
+                  [disabled]="step() === 1 && !ageConfirmed"
+                  class="px-8 py-3 rounded-xl bg-pink-600 text-white font-bold shadow-lg shadow-pink-600/20 hover:bg-pink-500 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100">
+             Continuar →
+          </button>
+       } @else {
+          <button (click)="publish()" 
+                  [disabled]="isModerating()"
+                  class="px-10 py-4 rounded-xl bg-gradient-to-r from-pink-600 to-purple-600 text-white font-bold shadow-xl shadow-purple-600/30 hover:scale-105 transition-all flex items-center gap-2 disabled:opacity-70">
+             @if(isModerating()) {
+                <span class="animate-spin">↻</span> Processando...
+             } @else {
+                🚀 Publicar Personagem
+             }
+          </button>
+       }
+    </div>
+
+  </div>
+</div>
+
+<style>
+  .cute-input {
+    @apply w-full bg-slate-800 border-2 border-slate-700 rounded-2xl px-4 py-3 text-white focus:outline-none focus:border-pink-500/50 focus:bg-slate-800 transition-all placeholder-slate-500;
+  }
+</style>
