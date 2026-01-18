@@ -4,11 +4,10 @@ import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { WebNovelService } from '../../services/web-novel.service';
 import { WebNovel } from '../../models/web-novel.model';
-import { parseNovelContent } from '../../logic/utils/markdown-renderer.logic';
+import { parseNovelContent } from '../../logic/web-novel/chapter-utils.logic';
 
 @Component({
   selector: 'app-web-novel-reader',
-  standalone: true,
   imports: [CommonModule],
   template: `
     <div class="min-h-screen bg-[#111] text-slate-300 font-serif leading-relaxed page-enter">

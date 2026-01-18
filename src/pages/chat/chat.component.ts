@@ -1,5 +1,5 @@
 
-import { Component, inject, signal, effect, ElementRef, ViewChild, ChangeDetectionStrategy, OnDestroy } from '@angular/core';
+import { Component, inject, signal, effect, ElementRef, ViewChild, ChangeDetectionStrategy, OnDestroy, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -7,16 +7,20 @@ import { CharacterService } from '../../services/character.service';
 import { GeminiService } from '../../services/gemini.service';
 import { EconomyService } from '../../services/economy.service';
 import { ChatHistoryService, ToolEntry } from '../../services/chat-history.service';
-import { NetworkService } from '../../services/network.service';
 import { ToastService } from '../../services/toast.service';
 import { AuthService } from '../../services/auth.service';
 import { AffinityService } from '../../services/affinity.service';
 import { PhoneGeneratorService } from '../../services/ai/phone-generator.service';
 import { ActivityService } from '../../services/activity.service'; 
+import { AiMemoryService } from '../../services/ai/ai-memory.service';
+import { MoodService, DailyState } from '../../services/simulation/mood.service'; 
+import { LifeSimulationService } from '../../services/simulation/life-simulation.service'; 
+import { ChatSettingsService } from '../../services/chat-settings.service'; 
+import { PersonaService } from '../../services/persona.service'; 
+import { VoiceService } from '../../services/voice.service';
 import { Character } from '../../models/character.model';
 import { Message } from '../../models/message.model';
 import { PhoneData } from '../../models/phone-content.model';
-import { Chat } from '@google/genai';
 import { ImageGenModalComponent } from '../../components/ui/image-gen-modal.component';
 import { PixDonateModalComponent } from '../../components/ui/pix-donate-modal.component';
 import { ChatToolsMenuComponent } from '../../components/chat/chat-tools-menu.component';
@@ -24,7 +28,16 @@ import { AffinityModalComponent } from '../../components/chat/affinity-modal.com
 import { ChatModesModalComponent } from '../../components/chat/chat-modes-modal.component';
 import { PhoneSimulatorComponent } from '../../components/chat/phone-simulator.component';
 import { CharacterProfileModalComponent } from '../../components/chat/character-profile-modal.component';
-import { buildSystemPrompt } from '../../logic/prompt-builder.logic';
+import { ChatOptionsMenuComponent } from '../../components/chat/settings/chat-options-menu.component'; 
+import { ChatSettingsModalComponent } from '../../components/chat/settings/chat-settings-modal.component'; 
+import { ChatMainMenuComponent } from '../../components/chat/menus/chat-main-menu.component'; 
+import { PersonaSelectorComponent } from '../../components/chat/settings/persona-selector.component'; 
+import { ChatInterruptionLogic } from '../../logic/chat/interaction/interruption.logic';
+import { FinancialTrackerLogic } from '../../logic/chat/analysis/financial-tracker.logic';
+import { MessageSenderWorkflow } from '../../logic/chat/workflow/message-sender.workflow';
+import { generateUUID } from '../../logic/core/uuid.logic';
+import { parseChatMessage } from '../../logic/chat/formatting/message-parser.logic';
+import { replaceChatPlaceholders } from '../../logic/chat/formatting/placeholder.logic';
 
 @Component({
   selector: 'app-chat',
@@ -33,7 +46,9 @@ import { buildSystemPrompt } from '../../logic/prompt-builder.logic';
     CommonModule, FormsModule, RouterLink, 
     ImageGenModalComponent, PixDonateModalComponent,
     ChatToolsMenuComponent, AffinityModalComponent, ChatModesModalComponent,
-    PhoneSimulatorComponent, CharacterProfileModalComponent
+    PhoneSimulatorComponent, CharacterProfileModalComponent,
+    ChatOptionsMenuComponent, ChatSettingsModalComponent,
+    ChatMainMenuComponent, PersonaSelectorComponent
   ],
   templateUrl: './chat.component.html',
   changeDetection: ChangeDetectionStrategy.OnPush
@@ -46,244 +61,123 @@ export class ChatComponent implements OnDestroy {
   geminiService = inject(GeminiService);
   economyService = inject(EconomyService);
   historyService = inject(ChatHistoryService);
+  memoryService = inject(AiMemoryService);
   toastService = inject(ToastService);
   affinityService = inject(AffinityService);
-  networkService = inject(NetworkService);
   phoneService = inject(PhoneGeneratorService);
   activityService = inject(ActivityService);
+  moodService = inject(MoodService); 
+  lifeSimService = inject(LifeSimulationService); 
+  chatSettings = inject(ChatSettingsService); 
+  personaService = inject(PersonaService); 
+  voiceService = inject(VoiceService); 
 
-  // State
-  character = signal<Character | undefined>(undefined);
+  private characterId = signal<string>('');
+  
+  character = computed(() => {
+    const id = this.characterId();
+    if (!id) return undefined;
+    return this.characterService.getCharacterSignal(id)();
+  });
+
   messages = signal<Message[]>([]);
-  toolHistory = signal<ToolEntry[]>([]); // New: Stores tool history locally
+  toolHistory = signal<ToolEntry[]>([]); 
   inputText = signal<string>('');
   isLoading = signal<boolean>(false);
   
-  // UI Toggles
+  dailyState = signal<DailyState | null>(null);
+  
   showToolsMenu = signal(false);
   showAffinityModal = signal(false);
   showChatModeModal = signal(false);
   showImageGenModal = signal(false);
   showPixModal = signal(false);
   showCharacterProfile = signal(false);
+  showMainMenu = signal(false); 
+  showPersonaModal = signal(false); 
+  showVisualSettingsModal = signal(false); 
   
-  // Dynamic Content Modals
   activeToolModal = signal<'phone_confirm' | 'diary' | 'dream' | 'memory' | 'forum' | 'history' | null>(null);
-  
-  // Phone State
   showPhoneModal = signal(false);
   phoneData = signal<PhoneData | null>(null);
   isPhoneLoading = signal(false);
+  isPhoneAllowed = signal(false);
 
-  private chatSession: Chat | null = null;
+  selectedCalendarDate = signal<string | null>(null); 
+
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
   @ViewChild('messageInput') private messageInput!: ElementRef<HTMLTextAreaElement>;
 
-  constructor() {
-    const id = this.route.snapshot.paramMap.get('id');
-    if (id) {
-      const char = this.characterService.getCharacterById(id);
-      if (char) {
-        this.character.set(char);
-        this.loadChatData(char);
-        // REMOVED: this.activityService.trackChat(char); 
-        // Logic moved to sendMessage to ensure user actually interacted
-      } else {
-        this.router.navigate(['/']);
-      }
-    }
+  backgroundStyle = computed(() => {
+    const bg = this.chatSettings.getWallpaperValue(this.chatSettings.currentSettings().wallpaperId);
+    return bg ? (bg.includes('url') ? bg : bg) : '';
+  });
 
-    effect(() => {
-      this.messages(); 
-      setTimeout(() => this.scrollToBottom(), 50);
+  decorationStyle = computed(() => {
+    return this.chatSettings.getDecorationClasses(this.chatSettings.currentSettings().decorationId);
+  });
+
+  constructor() {
+    this.route.paramMap.subscribe(params => {
+       const id = params.get('id');
+       if (id) {
+         this.characterId.set(id);
+         const char = this.characterService.getCharacterById(id);
+         if (char) {
+           this.chatSettings.loadSettings(char.id);
+           this.loadChatData(char);
+         } else {
+           this.router.navigate(['/home']);
+         }
+       }
     });
 
     effect(() => {
-      if (this.character()) {
-        // Save both messages and tool history
-        this.historyService.saveChatData(this.character()!.id, this.messages(), '', this.toolHistory());
+      const len = this.messages().length;
+      if (len > 0) setTimeout(() => this.scrollToBottom(), 50);
+    });
+
+    effect(() => {
+      const char = this.character();
+      const msgs = this.messages();
+      if (char && msgs.length > 0) {
+        const data = this.historyService.getChatData(char.id);
+        this.historyService.saveChatData(char.id, msgs, data.summary, this.toolHistory(), this.phoneData() || data.phoneData);
       }
     });
   }
 
   ngOnDestroy() {
-    // Note: We deliberately DO NOT destroy the chatSession here.
-    // It remains in the GeminiService cache for pausing/resuming.
+    this.voiceService.cancel();
+  }
+
+  private replacePlaceholders(text: string): string {
+    const currentPersona = this.personaService.activePersona();
+    const userName = currentPersona ? currentPersona.name : (this.auth.currentUser()?.username || 'User');
+    return replaceChatPlaceholders(text, this.character(), userName);
   }
 
   async loadChatData(char: Character) {
     const chatData = this.historyService.getChatData(char.id);
-    this.messages.set(chatData.messages);
-    this.toolHistory.set(chatData.toolHistory || []);
+    let currentMessages = chatData.messages;
     
-    const userName = this.auth.currentUser()?.username || 'User';
-    const prompt = buildSystemPrompt(char, userName, chatData.summary);
-    
-    // Resume session from cache or create new one, keyed by Character ID
-    this.chatSession = await this.geminiService.createChatSession(char.id, prompt);
-
-    if (chatData.messages.length === 0) {
-      const intro = `*${char.name} notices you.* "Greetings."`;
-      this.addMessage('model', intro);
-    }
-  }
-
-  toggleToolsMenu() {
-    this.showToolsMenu.update(v => !v);
-  }
-
-  async handleToolAction(action: string) {
-    this.showToolsMenu.set(false);
-    
-    switch (action) {
-      case 'photo': 
-        this.showImageGenModal.set(true); 
-        break;
-      
-      case 'phone': 
-        this.activeToolModal.set('phone_confirm'); 
-        break;
-      
-      case 'thought':
-        await this.generateContent('thought');
-        break;
-
-      case 'diary': 
-        this.activeToolModal.set('diary');
-        // Only generate automatically if empty, otherwise show history
-        if (this.getHistoryForType('diary').length === 0) {
-           await this.generateContent('diary');
-        }
-        break;
-
-      case 'dream': 
-        this.activeToolModal.set('dream');
-        if (this.getHistoryForType('dream').length === 0) {
-           await this.generateContent('dream');
-        }
-        break;
-      
-      case 'memory': 
-        this.generateMemorySummary();
-        this.activeToolModal.set('memory'); 
-        break;
-        
-      case 'history':
-        this.activeToolModal.set('history');
-        break;
-
-      case 'forum':
-        this.activeToolModal.set('forum');
-        if (this.getHistoryForType('forum').length === 0) {
-           await this.generateContent('forum');
-        }
-        break;
-    }
-  }
-
-  // Helper to filter history for the modal
-  getHistoryForType(type: 'diary' | 'dream' | 'thought' | 'forum'): ToolEntry[] {
-    return this.toolHistory().filter(h => h.type === type);
-  }
-
-  // --- UNIFIED GENERATION LOGIC ---
-
-  async generateContent(type: 'diary' | 'dream' | 'thought' | 'forum') {
-    if (!this.chatSession) return;
-    this.isLoading.set(true);
-
-    try {
-       // 1. Get Context from previous entries to maintain realism
-       const previousEntries = this.getHistoryForType(type).slice(0, 3).map(e => e.content).join('\n---\n');
-       const contextPrompt = previousEntries ? `[PREVIOUS ENTRIES FOR CONTEXT]:\n${previousEntries}\n\n` : '';
-
-       let prompt = '';
-       if (type === 'diary') {
-         prompt = `${contextPrompt}[TASK] Write a new secret diary entry (max 100 words) for ${this.character()?.name}. Reflect on the latest interactions with the user. Show hidden feelings/secrets. Make it distinct from previous entries.`;
-       } else if (type === 'dream') {
-         prompt = `${contextPrompt}[TASK] Describe a new, vivid, symbolic dream ${this.character()?.name} had. Max 80 words. Abstract and mysterious.`;
-       } else if (type === 'forum') {
-         prompt = `${contextPrompt}[TASK] Generate a social media thread (simulation) where people are talking about ${this.character()?.name} or the user. Include timestamps.`;
-       } else if (type === 'thought') {
-         // Thoughts are instant, cost money, and are added to chat
-         if (!this.economyService.spendCoins(10)) {
-            this.toastService.show("Costs 10 SC to read thoughts!", "error");
-            this.isLoading.set(false);
-            return;
-         }
-         prompt = `[TASK] Reveal ${this.character()?.name}'s current internal monologue right now regarding the user. Raw and unfiltered.`;
-       }
-
-       // 2. Generate
-       const result = await this.geminiService.sendMessage(this.chatSession, prompt);
-
-       // 3. Save to History
-       if (type !== 'thought') {
-          const entry: ToolEntry = {
-             id: Date.now().toString(),
-             type,
-             content: result,
-             timestamp: Date.now()
-          };
-          
-          this.toolHistory.update(h => [entry, ...h]); // Add to local signal
-          this.historyService.addToolEntry(this.character()!.id, entry); // Persist
-       } else {
-          // Thoughts go directly to chat as a special message
-          this.addMessage('model', `💭 *Inner Thought:* ${result}`);
-       }
-
-       // 4. INJECT KNOWLEDGE (The "Embarrassment" Protocol)
-       // We tell the AI that the user saw this, so it reacts realistically if mentioned.
-       const injectionMsg = `[SYSTEM EVENT: The User has successfully bypassed privacy protocols and READ your private ${type.toUpperCase()}: "${result}". You are now aware that they know this information. If the user mentions this content, you MUST react realistically (e.g., extreme embarrassment, anger, defensiveness, or shyness) depending on your personality. Do not mention this system event, just act the part.]`;
+    if (currentMessages.length === 0) {
+       this.dailyState.set(this.moodService.getInitialState(char));
+       let introText = char.firstMessage ? this.replacePlaceholders(char.firstMessage) : `*${char.name} notices you.*`;
        
-       // Send silently to Gemini (don't add to UI)
-       await this.geminiService.sendMessage(this.chatSession, injectionMsg);
-
-    } finally { 
-       this.isLoading.set(false); 
-    }
-  }
-
-  generateMemorySummary() {
-    // Just a visual representation for the modal
-    const entry: ToolEntry = {
-       id: 'mem_' + Date.now(),
-       type: 'memory' as any, // Visual type
-       content: "Neural Link Established.\nShort-term buffer active.\nLong-term engrams syncing...",
-       timestamp: Date.now()
-    };
-    // We don't save memory summary to history like others, it's just a view
-  }
-
-  // --- PHONE LOGIC ---
-  async unlockPhone() {
-    this.activeToolModal.set(null);
-    
-    if (!this.economyService.spendCoins(60)) {
-      this.toastService.show("Insufficient Sakura Coins!", "error");
-      return;
-    }
-
-    this.isPhoneLoading.set(true);
-    this.toastService.show("Hacking Device... Please Wait", "info", 2000);
-
-    const data = await this.phoneService.hackPhone(this.character()!);
-    
-    this.isPhoneLoading.set(false);
-    if (data) {
-      this.phoneData.set(data);
-      this.showPhoneModal.set(true);
-      
-      // Inject knowledge of phone hack
-      if (this.chatSession) {
-         this.geminiService.sendMessage(this.chatSession, `[SYSTEM EVENT: User HACKED your phone and saw your gallery/messages. React accordingly if they bring it up.]`);
-      }
-
+       const initialMsg: Message = {
+          id: generateUUID(), role: 'model', text: introText, timestamp: Date.now()
+       };
+       currentMessages = [initialMsg];
+       this.historyService.saveChatData(char.id, currentMessages, chatData.summary);
     } else {
-      this.toastService.show("Connection Failed. Refund issued.", "error");
-      this.economyService.earnCoins(60); 
+       this.lifeSimService.processLifeCycle(char);
+       this.dailyState.set(this.moodService.getCharacterState(char));
     }
+
+    this.messages.set(currentMessages);
+    this.toolHistory.set(chatData.toolHistory || []);
+    if (chatData.phoneData) this.phoneData.set(chatData.phoneData);
   }
 
   async sendMessage() {
@@ -291,72 +185,211 @@ export class ChatComponent implements OnDestroy {
     
     const text = this.inputText();
     this.inputText.set('');
-    this.resetInputHeight();
     this.addMessage('user', text);
     this.isLoading.set(true);
 
-    if (this.character()) {
-       this.character()!.affinity += 1;
-       this.economyService.addXp(5);
-       // Track activity ONLY here (when user actually sends a message)
-       this.activityService.trackChat(this.character()!);
-    }
+    const char = this.character();
+    if (char) {
+        const result = await MessageSenderWorkflow.execute(text, char, this.dailyState(), {
+            character: this.characterService,
+            economy: this.economyService,
+            activity: this.activityService,
+            gemini: this.geminiService,
+            history: this.historyService,
+            memory: this.memoryService, 
+            persona: this.personaService,
+            settings: this.chatSettings,
+            auth: this.auth
+        });
 
-    try {
-      if (this.chatSession) {
-        const response = await this.geminiService.sendMessage(this.chatSession, text);
-        this.addMessage('model', response);
-      }
-    } catch (e) {
-      this.addMessage('model', '(Connection failed...)');
-    } finally {
-      this.isLoading.set(false);
+        if (result.updatedDailyState) this.dailyState.set(result.updatedDailyState);
+        if (result.feedback) this.toastService.show(result.feedback.message, result.feedback.type);
+        
+        if (result.aiMessage) {
+            this.addMessage('model', result.aiMessage.text);
+        } else {
+            this.addMessage('model', '(Error: Neural Link Unstable. Try again.)');
+        }
+    }
+    this.isLoading.set(false);
+  }
+
+  addMessage(role: 'user' | 'model', text: string, attachmentUrl?: string) {
+    this.messages.update(msgs => [...msgs, { 
+      id: generateUUID(), 
+      role, 
+      text, 
+      timestamp: Date.now(),
+      attachmentUrl 
+    }]);
+    
+    if (role === 'model' && this.chatSettings.currentSettings().autoVoice) {
+       const char = this.character();
+       const gender = char?.gender === 'Male' ? 'male' : 'female';
+       const spokenText = text.replace(/\*[^*]+\*/g, '').trim(); 
+       if (spokenText) this.voiceService.speak(spokenText, gender);
     }
   }
 
-  addMessage(role: 'user' | 'model', text: string) {
-    this.messages.update(msgs => [...msgs, { id: Date.now().toString(), role, text, timestamp: Date.now() }]);
+  handleImageSelection(imageUrl: string) {
+    // 1. Adiciona a mensagem visual
+    this.addMessage('user', 'Enviei uma imagem.', imageUrl);
+    
+    // 2. Dispara reação da IA com prompt de sistema invisível
+    // Como não temos multimodal real para histórico passado, explicamos o que aconteceu no prompt
+    this.triggerSystemReaction(`[SYSTEM: USER SENT AN IMAGE] 
+    The user just sent you a photo. Assume it is relevant to the conversation or a selfie. 
+    React to receiving an image. Describe what you see based on context or ask what it is if unclear.`);
   }
 
-  parseMessage(text: string): { type: 'text' | 'action', content: string }[] {
-    const parts: { type: 'text' | 'action', content: string }[] = [];
-    const regex = /\*([^*]+)\*/g;
-    let lastIndex = 0;
-    let match;
+  handleMenuAction(action: string) {
+    this.showMainMenu.set(false); 
+    switch(action) {
+      case 'profile': this.showCharacterProfile.set(true); break;
+      case 'persona': this.showPersonaModal.set(true); break;
+      case 'modes': this.showChatModeModal.set(true); break;
+      case 'affinity': this.showAffinityModal.set(true); break;
+      case 'visuals': this.showVisualSettingsModal.set(true); break;
+      case 'new_chat':
+        if(confirm('Iniciar novo chat? Isso arquiva a memória atual.')) {
+           this.messages.set([]);
+           this.historyService.clearHistory(this.character()!.id); 
+           this.loadChatData(this.character()!); 
+        }
+        break;
+      case 'reset': 
+        if (confirm('⚠️ RESET TOTAL: Apagar toda a memória deste personagem?')) {
+           this.historyService.clearHistory(this.character()!.id);
+           this.characterService.updateAffinity(this.character()!.id, 0);
+           location.reload();
+        }
+        break;
+    }
+  }
 
-    while ((match = regex.exec(text)) !== null) {
-       if (match.index > lastIndex) {
-          parts.push({ type: 'text', content: text.substring(lastIndex, match.index) });
+  async handleToolAction(action: string) {
+    this.showToolsMenu.set(false);
+    const char = this.character();
+    
+    if (char && ['phone', 'diary'].includes(action)) {
+       const check = ChatInterruptionLogic.checkAccess(char, action as any, this.messages(), this.dailyState());
+       if (check.status === 'DENIED' || check.status === 'CAUGHT') {
+          if (check.systemPrompt) this.triggerSystemReaction(check.systemPrompt);
+          return; 
        }
-       parts.push({ type: 'action', content: match[1] });
-       lastIndex = regex.lastIndex;
     }
-    if (lastIndex < text.length) {
-       parts.push({ type: 'text', content: text.substring(lastIndex) });
+
+    switch (action) {
+      case 'photo': 
+        this.showImageGenModal.set(true); 
+        break;
+      case 'phone': 
+        if (this.phoneData()) {
+           this.showPhoneModal.set(true);
+           const lastMsg = this.messages().filter(m => m.role === 'model').pop()?.text || '';
+           this.isPhoneAllowed.set(ChatInterruptionLogic.hasExplicitConsent(lastMsg));
+        } else {
+           this.activeToolModal.set('phone_confirm'); 
+        }
+        break;
+      case 'thought': await this.generateContent('thought'); break;
+      case 'diary': 
+        this.activeToolModal.set('diary');
+        this.selectedCalendarDate.set(new Date().toISOString().split('T')[0]);
+        this.generateContent('diary');
+        break;
+      case 'dream': 
+        this.activeToolModal.set('dream');
+        await this.generateContent('dream');
+        break;
+      case 'memory': this.activeToolModal.set('memory'); break;
+      case 'history': this.activeToolModal.set('history'); break;
+      case 'forum':
+        this.activeToolModal.set('forum');
+        await this.generateContent('forum');
+        break;
     }
-    return parts;
   }
 
-  handleEnter(e: KeyboardEvent) {
-     if (!e.shiftKey) {
-        e.preventDefault();
-        this.sendMessage();
-     }
+  async generateContent(type: 'diary' | 'dream' | 'thought' | 'forum') {
+    const char = this.character();
+    if (!char) return;
+    
+    this.isLoading.set(true);
+    try {
+       let instruction = '';
+       switch(type) {
+          case 'diary': instruction = `Write a diary entry for today from ${char.name}'s perspective. Reflect on recent interactions with the User. Keep it secret and personal. Use date: ${new Date().toLocaleDateString()}.`; break;
+          case 'dream': instruction = `Describe a dream ${char.name} had last night. It should be abstract, symbolic, and related to their fears or desires (and maybe the User).`; break;
+          case 'forum': instruction = `Write a social media post (Twitter/Reddit style) that ${char.name} would post right now. Include hashtags. It can be vagueposting about the user.`; break;
+          case 'thought': instruction = `Reveal ${char.name}'s internal monologue right now. What are they thinking but not saying?`; break;
+       }
+
+       const chat = await this.geminiService.createChatSession(char.id, instruction, 'flash', this.messages().slice(-10));
+       const result = await this.geminiService.sendMessage(chat, 'Generate now.');
+       
+       if (type === 'thought') {
+          this.addMessage('model', `💭 *Pensamento:* ${result}`);
+       } else {
+          const entry: ToolEntry = { 
+             id: generateUUID(), type, content: result, timestamp: Date.now(), dateRef: new Date().toISOString().split('T')[0] 
+          };
+          this.toolHistory.update(h => [entry, ...h]); 
+          this.historyService.addToolEntry(char.id, entry); 
+       }
+    } finally { this.isLoading.set(false); }
   }
 
-  autoGrow(e: any) {
-    const el = e.target;
-    el.style.height = 'auto';
-    el.style.height = Math.min(el.scrollHeight, 120) + 'px';
+  async triggerSystemReaction(prompt: string) {
+     this.isLoading.set(true);
+     try {
+        const chat = await this.geminiService.createChatSession(this.character()!.id, prompt, 'flash', this.messages());
+        const response = await this.geminiService.sendMessage(chat, "REACT NOW");
+        this.addMessage('model', response);
+     } finally { this.isLoading.set(false); }
   }
 
-  resetInputHeight() {
-    if (this.messageInput?.nativeElement) {
-      this.messageInput.nativeElement.style.height = 'auto';
+  async unlockPhone() {
+    this.activeToolModal.set(null);
+    if (this.phoneData()) { this.showPhoneModal.set(true); return; }
+    
+    if (!this.economyService.spendCoins(60)) { 
+      this.toastService.show("Moedas Insuficientes! (Custo: 60)", "error"); return;
+    }
+    this.toastService.show("-60 Sakura Coins. Hackeando...", "success");
+    await this.refreshPhoneData();
+  }
+
+  async refreshPhoneData() {
+    this.isPhoneLoading.set(true);
+    try {
+        const financialContext = FinancialTrackerLogic.analyzeFinancialContext(this.messages());
+        const data = await this.phoneService.hackPhone(this.character()!, financialContext);
+        if (data) {
+          this.phoneData.set(data);
+          this.historyService.savePhoneData(this.character()!.id, data);
+          this.showPhoneModal.set(true);
+          this.isPhoneAllowed.set(false);
+        }
+    } finally {
+        this.isPhoneLoading.set(false);
     }
   }
 
-  scrollToBottom() {
-    try { this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight; } catch(err) {}
+  handleCaught(type: string) {
+    this.showPhoneModal.set(false);
+    const char = this.character();
+    if (char) {
+       this.characterService.updateAffinity(char.id, char.affinity - 15);
+       const prompt = ChatInterruptionLogic.buildEmbarrassingCaughtPrompt(char, 'phone');
+       this.triggerSystemReaction(prompt);
+    }
   }
+
+  getHistoryForType(type: any) { return this.toolHistory().filter(h => h.type === type); }
+  toggleToolsMenu() { this.showToolsMenu.update(v => !v); }
+  handleEnter(e: KeyboardEvent) { if (!e.shiftKey) { e.preventDefault(); this.sendMessage(); } }
+  autoGrow(e: any) { e.target.style.height = 'auto'; e.target.style.height = Math.min(e.target.scrollHeight, 120) + 'px'; }
+  parseMessage(text: string) { return parseChatMessage(text); }
+  scrollToBottom() { try { this.scrollContainer.nativeElement.scrollTop = this.scrollContainer.nativeElement.scrollHeight; } catch(err) {} }
 }

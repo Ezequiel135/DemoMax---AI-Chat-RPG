@@ -5,6 +5,7 @@ import { AuthService } from './auth.service';
 import { MOCK_CHARACTERS } from '../data/mock-characters.data';
 import { DatabaseService } from './core/database.service';
 import { ToastService } from './toast.service';
+import { filterCharacterContent, searchCharacters } from '../logic/character/character-filter.logic';
 
 @Injectable({
   providedIn: 'root'
@@ -16,120 +17,124 @@ export class CharacterService {
   
   private readonly DB_COLLECTION = 'characters_v1';
   
-  // Estado local reativo (Signals)
+  // Single Source of Truth
   private _characters = signal<Character[]>([]);
   readonly allCharacters = this._characters.asReadonly();
 
-  // Cache temporário
-  private _activeCharacterId: string | null = null;
+  private _initialized = false;
 
-  constructor() {
-    this.initialize();
-  }
-
-  /**
-   * Carrega dados do Banco de Dados (API)
-   */
-  private async initialize() {
+  async initializeData() {
+    if (this._initialized) return;
+    
     try {
       const savedChars = await this.db.getAll<Character>(this.DB_COLLECTION);
+      // Merge ensuring Mocks are always present for demo but not duplicated if already saved
+      // Priority to DB version to keep affinity changes
+      const merged = [...savedChars];
       
-      // Fusão de dados: Mocks (Sistema) + Salvos (Customizados)
-      // Em uma API real, os mocks viriam do servidor também.
-      const merged = [
-        ...savedChars, 
-        ...MOCK_CHARACTERS.filter(m => !savedChars.find(s => s.id === m.id))
-      ];
-      
+      MOCK_CHARACTERS.forEach(mock => {
+         if (!merged.find(s => s.id === mock.id)) {
+            merged.push(mock);
+         }
+      });
+
       this._characters.set(merged);
+      this._initialized = true;
     } catch (error) {
-      console.error("Falha ao carregar personagens:", error);
+      console.error('Failed to init characters', error);
       this._characters.set(MOCK_CHARACTERS);
     }
   }
 
+  // Reactive Getter: Returns a Signal that updates when the list updates
+  getCharacterSignal(id: string) {
+    return computed(() => this._characters().find(c => c.id === id));
+  }
+
+  incrementMessageCount(id: string) {
+    this.updateCharacterLocal(id, char => {
+        const current = parseInt(char.messageCount.replace(/[^0-9]/g, '')) || 0;
+        return { messageCount: (current + 1).toString() };
+    });
+  }
+
+  async updateAffinity(id: string, newAffinity: number) {
+    await this.updateCharacterLocal(id, () => ({ affinity: newAffinity }));
+  }
+
+  // Generic update helper
+  private async updateCharacterLocal(id: string, updater: (c: Character) => Partial<Character>) {
+    let updatedChar: Character | undefined;
+
+    this._characters.update(chars => chars.map(c => {
+        if (c.id !== id) return c;
+        const changes = updater(c);
+        updatedChar = { ...c, ...changes };
+        return updatedChar;
+    }));
+
+    if (updatedChar) {
+        // Fire and forget save to DB
+        this.db.save(this.DB_COLLECTION, updatedChar);
+    }
+  }
+
+  readonly trending = computed(() => 
+    filterCharacterContent(this._characters().filter(c => c.isTrending), this.auth.currentUser())
+  );
+  
+  readonly newArrivals = computed(() => 
+    filterCharacterContent(this._characters().filter(c => c.isNew), this.auth.currentUser())
+  );
+  
+  readonly recommended = computed(() => 
+    filterCharacterContent(this._characters(), this.auth.currentUser())
+  );
+
   search(query: string): Character[] {
-    const q = query.toLowerCase().trim();
-    if (!q) return [];
-    
-    return this.filterContent(this._characters()).filter(c => 
-      c.name.toLowerCase().includes(q) || 
-      c.tagline.toLowerCase().includes(q) ||
-      c.tags.some(t => t.toLowerCase().includes(q)) ||
-      c.creator.toLowerCase().includes(q)
-    );
+    return searchCharacters(this._characters(), query, this.auth.currentUser());
   }
 
-  toggleLike(character: Character) {
-    // Futuro: Chamar API de like
-    this.toast.show(`Você curtiu ${character.name}! ❤️`, 'success');
-  }
-
-  canEdit(char: Character): boolean {
-    const user = this.auth.currentUser();
-    if (!user) return false;
-    if (this.auth.isMaster()) return true;
-    if (char.creatorId) return char.creatorId === user.id;
-    return char.creator === '@' + user.username;
-  }
-
-  private filterContent(chars: Character[]): Character[] {
-    const user = this.auth.currentUser();
-    if (this.auth.isMaster()) return chars;
-    const showNSFW = user?.showNSFW ?? false;
-    return showNSFW ? chars : chars.filter(c => !c.isNSFW);
-  }
-
-  readonly trending = computed(() => this.filterContent(this._characters().filter(c => c.isTrending)));
-  readonly newArrivals = computed(() => this.filterContent(this._characters().filter(c => c.isNew)));
-  readonly recommended = computed(() => this.filterContent(this._characters()));
-
+  // Direct getter (non-reactive snapshot)
   getCharacterById(id: string): Character | undefined {
-    this._activeCharacterId = id;
-    
-    const char = this._characters().find(c => c.id === id);
+    let char = this._characters().find(c => c.id === id);
     if (!char) return undefined;
     
-    if (this.auth.isMaster()) return char;
     const user = this.auth.currentUser();
-    const showNSFW = user?.showNSFW ?? false;
+    const showNSFW = user ? user.showNSFW : false;
     
     if (char.isNSFW && !showNSFW) return undefined;
 
     return char;
   }
 
-  async addCharacter(char: Character) {
+  toggleLike(character: Character) {
+    this.toast.show(`Você curtiu ${character.name}! ❤️`, 'success');
+    this.updateCharacterLocal(character.id, c => {
+        const current = parseInt(c.favoriteCount.replace(/[^0-9]/g, '')) || 0;
+        return { favoriteCount: (current + 1).toString() };
+    });
+  }
+
+  canEdit(char: Character): boolean {
     const user = this.auth.currentUser();
-    if (user && !char.creatorId) char.creatorId = user.id;
+    if (!user) return false;
+    if (this.auth.isMaster()) return true;
+    return char.creatorId === user.id;
+  }
 
-    // Atualiza UI instantaneamente (Otimistic Update)
-    this._characters.update(current => [char, ...current.filter(c => c.id !== char.id)]);
-
-    // Salva na API/DB apenas os customizados
-    const currentCustoms = await this.db.getAll<Character>(this.DB_COLLECTION);
-    const updatedCustoms = [char, ...currentCustoms.filter(c => c.id !== char.id)];
-    await this.db.saveAll(this.DB_COLLECTION, updatedCustoms);
+  async addCharacter(char: Character) {
+    await this.db.save(this.DB_COLLECTION, char);
+    
+    this._characters.update(current => {
+        const filtered = current.filter(c => c.id !== char.id);
+        return [char, ...filtered];
+    });
   }
 
   async deleteCharacter(id: string) {
-    const char = this._characters().find(c => c.id === id);
-    if (!char) return;
-
-    if (!this.canEdit(char)) {
-        this.toast.show("Permissão negada.", "error");
-        return;
-    }
-
-    // Atualiza UI
     this._characters.update(current => current.filter(c => c.id !== id));
-    
-    // Atualiza DB
-    const currentCustoms = await this.db.getAll<Character>(this.DB_COLLECTION);
-    const updatedCustoms = currentCustoms.filter(c => c.id !== id);
-    await this.db.saveAll(this.DB_COLLECTION, updatedCustoms);
-
-    this.toast.show("Personagem excluído.", "info");
+    await this.db.delete(this.DB_COLLECTION, id);
   }
 
   refreshFeed() {
@@ -137,6 +142,6 @@ export class CharacterService {
   }
 
   releaseActiveMemory() {
-    this._activeCharacterId = null;
+    // Optional cleanup
   }
 }

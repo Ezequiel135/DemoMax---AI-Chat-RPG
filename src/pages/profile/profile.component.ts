@@ -6,6 +6,8 @@ import { RouterLink, Router } from '@angular/router';
 import { AuthService } from '../../services/auth.service';
 import { EconomyService } from '../../services/economy.service';
 import { CharacterService } from '../../services/character.service';
+import { VnService } from '../../services/vn.service'; 
+import { WebNovelService } from '../../services/web-novel.service'; 
 import { HeaderComponent } from '../../components/header/header.component';
 import { ToastService } from '../../services/toast.service';
 import { ThemeToggleComponent } from '../../components/ui/theme-toggle.component';
@@ -13,6 +15,7 @@ import { CharacterCardComponent } from '../../components/character-card/characte
 import { ImageCropperModalComponent } from '../../components/ui/image-cropper-modal.component';
 import { OptimizationManagerService } from '../../services/core/optimization-manager.service'; 
 import { SocialService } from '../../services/social.service';
+import { UserListModalComponent } from '../../components/user/user-list-modal.component';
 
 @Component({
   selector: 'app-profile',
@@ -20,7 +23,7 @@ import { SocialService } from '../../services/social.service';
   imports: [
     CommonModule, FormsModule, HeaderComponent, 
     ThemeToggleComponent, RouterLink, CharacterCardComponent,
-    ImageCropperModalComponent
+    ImageCropperModalComponent, UserListModalComponent
   ],
   templateUrl: './profile.component.html',
   styles: []
@@ -29,6 +32,8 @@ export class ProfileComponent {
   auth = inject(AuthService);
   economy = inject(EconomyService);
   charService = inject(CharacterService);
+  vnService = inject(VnService); 
+  wnService = inject(WebNovelService); 
   socialService = inject(SocialService);
   toast = inject(ToastService);
   router = inject(Router);
@@ -36,6 +41,9 @@ export class ProfileComponent {
 
   activeTab = signal<'creations' | 'favorites'>('creations');
   editMode = signal(false);
+  
+  // User List Modal
+  showUserList = signal<'followers' | 'following' | null>(null);
   
   // Crop State
   showCropper = signal(false);
@@ -51,37 +59,72 @@ export class ProfileComponent {
     bannerUrl: ''
   };
 
-  // Meus Personagens (Criações Próprias)
+  // --- MEUS CONTEÚDOS (CRIAÇÕES) ---
   myCharacters = computed(() => {
     const user = this.auth.currentUser();
     if (!user) return [];
-    return this.charService.allCharacters().filter(c => {
-       if (c.creatorId) return c.creatorId === user.id;
-       return c.creator === '@' + user.username;
-    });
+    return this.charService.allCharacters().filter(c => c.creatorId === user.id);
   });
 
-  // Real Stats (Zero Start)
-  followersCount = computed(() => {
-     // Na lógica real, viria do backend. Aqui simulamos 0 ou um valor baixo real.
-     // Se for o usuário Master, tem stats falsos, senão 0.
-     if (this.auth.isMaster()) return 109; // Do print
-     return 0; 
+  myNovels = computed(() => {
+    const user = this.auth.currentUser();
+    if (!user) return [];
+    return this.vnService.novels().filter(n => n.creatorId === user.id);
   });
 
-  followingCount = computed(() => {
-     // Retorna o tamanho real da lista de quem estou seguindo
-     // (SocialService é private no signal, mas podemos expor ou usar método público se houver, 
-     //  assumindo 0 por segurança de "zero start" se não tiver tracking real ainda implementado para "seguindo" contagem)
-     return 0; // Começa com zero real
+  myWebNovels = computed(() => {
+    const user = this.auth.currentUser();
+    if (!user) return [];
+    return this.wnService.novels().filter(n => n.creatorId === user.id);
   });
+
+  // --- FAVORITOS (REAL) ---
+  favCharacters = computed(() => {
+    const ids = this.socialService.followingCharsIds();
+    return this.charService.allCharacters().filter(c => ids.includes(c.id));
+  });
+
+  favNovels = computed(() => {
+    const ids = this.socialService.likedNovelsIds();
+    return this.vnService.novels().filter(n => ids.includes(n.id));
+  });
+
+  favWebNovels = computed(() => {
+    const ids = this.socialService.likedWebNovelsIds();
+    return this.wnService.novels().filter(n => ids.includes(n.id));
+  });
+
+  // --- HELPERS ---
+  
+  hasContent = computed(() => {
+    return this.myCharacters().length > 0 || this.myNovels().length > 0 || this.myWebNovels().length > 0;
+  });
+
+  hasFavorites = computed(() => {
+    return this.favCharacters().length > 0 || this.favNovels().length > 0 || this.favWebNovels().length > 0;
+  });
+
+  followersCount = this.socialService.followerCount;
+  followingCount = this.socialService.followingCount;
+  
+  // Dados para o modal
+  followersList = computed(() => this.socialService.followersList);
+  followingList = computed(() => this.socialService.followingList);
+  
+  totalPostsCount = computed(() => {
+     return this.myCharacters().length + this.myNovels().length + this.myWebNovels().length;
+  });
+
+  openUserList(type: 'followers' | 'following') {
+    this.showUserList.set(type);
+  }
 
   startEdit() {
     const u = this.auth.currentUser();
     if (!u) return;
 
     if (this.auth.isGuest()) {
-      this.toast.show("Visitantes não podem editar perfil. Crie uma conta!", "error");
+      this.toast.show("Visitantes não podem editar perfil.", "error");
       return;
     }
 
@@ -99,21 +142,13 @@ export class ProfileComponent {
   }
 
   saveEdit() {
-    const u = this.auth.currentUser();
-    if (u) {
-      this.auth.updateProfile(this.editData);
-      this.toast.show("Perfil atualizado com sucesso!", "success");
-      this.editMode.set(false);
-    }
+    this.auth.updateProfile(this.editData);
+    this.toast.show("Perfil atualizado!", "success");
+    this.editMode.set(false);
   }
 
-  // --- LOGIC DE UPLOAD & CROP ---
-  
   triggerUpload(type: 'avatar' | 'banner') {
-    if (this.auth.isGuest()) {
-      this.toast.show("Apenas usuários registrados podem fazer upload.", "error");
-      return;
-    }
+    if (this.auth.isGuest()) return;
     const inputId = type === 'avatar' ? 'avatarInput' : 'bannerInput';
     document.getElementById(inputId)?.click();
   }
@@ -123,25 +158,10 @@ export class ProfileComponent {
     if (!input.files?.length) return;
 
     const file = input.files[0];
-    
-    if (file.size > 5 * 1024 * 1024) {
-      this.toast.show("Arquivo muito grande! Máximo 5MB.", "error");
-      input.value = ''; 
-      return;
-    }
-
     const reader = new FileReader();
+    
     reader.onload = (e) => {
       const result = e.target?.result as string;
-      
-      if (file.type === 'image/gif') {
-         if (type === 'avatar') this.editData.avatarUrl = result;
-         else this.editData.bannerUrl = result;
-         this.toast.show("GIF carregado! (Sem recorte)", "success");
-         input.value = ''; 
-         return;
-      }
-
       this.tempImage.set(result);
       this.cropType.set(type);
       
@@ -166,7 +186,6 @@ export class ProfileComponent {
        this.editData.bannerUrl = croppedImage;
     }
     this.showCropper.set(false);
-    this.toast.show("Imagem ajustada com sucesso!", "success");
   }
 
   cancelCrop() {
@@ -177,22 +196,15 @@ export class ProfileComponent {
   toggleNSFW() {
     const current = this.auth.currentUser();
     if (current) {
-       const newState = !current.showNSFW;
-       this.auth.updateContentFilter(newState);
-       if (newState) this.toast.show("Conteúdo adulto visível.", "info");
-       else this.toast.show("Filtro de segurança ativado.", "success");
+       this.auth.updateContentFilter(!current.showNSFW);
     }
-  }
-
-  manualOptimize() {
-    this.optimizer.manualCleanup();
   }
 
   createNew() {
     if (this.auth.isGuest()) {
-      this.toast.show("Crie uma conta para criar personagens!", "error");
+      this.toast.show("Crie uma conta para criar conteúdo!", "error");
       return;
     }
-    this.router.navigate(['/create/character']);
+    this.router.navigate(['/create']);
   }
 }

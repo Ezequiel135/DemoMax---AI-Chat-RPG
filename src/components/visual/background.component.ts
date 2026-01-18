@@ -10,53 +10,46 @@ import { ThemeService } from '../../services/theme.service';
   template: `
     <div class="fixed inset-0 z-[-1] overflow-hidden pointer-events-none select-none transition-colors duration-700"
          [class.bg-[#FAFAFA]]="theme.theme() === 'light'"
-         [class.bg-[#2F2F2F]]="theme.theme() === 'dark'">
+         [class.bg-[#0F0E17]]="theme.theme() === 'dark'">
       
-      <!-- DARK MODE: Cyber Grid -->
-      <div class="absolute inset-0 transition-opacity duration-700" 
-           [class.opacity-[0.05]]="theme.theme() === 'dark'"
+      <!-- DARK MODE: Static Grid (GPU Accelerated) -->
+      <div class="absolute inset-0 transition-opacity duration-700 opacity-[0.03] will-change-transform" 
            [class.opacity-0]="theme.theme() === 'light'"
-           style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 50px 50px;">
+           style="background-image: linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px); background-size: 40px 40px; transform: translateZ(0);">
       </div>
 
-      <!-- LIGHT MODE: Soft Sakura Gradient Overlay -->
+      <!-- LIGHT MODE: Static Gradient -->
       <div class="absolute inset-0 transition-opacity duration-700 bg-gradient-to-br from-pink-50 to-white/50"
            [class.opacity-100]="theme.theme() === 'light'"
            [class.opacity-0]="theme.theme() === 'dark'">
       </div>
 
-      <!-- LIGHT MODE: Floating Petals (Simulated with Orbs for performance) -->
-      <div class="absolute top-[-10%] left-[20%] w-[400px] h-[400px] rounded-full bg-pink-300/20 blur-[80px] animate-drift-slow transition-opacity duration-700"
-           [class.opacity-0]="theme.theme() === 'dark'"></div>
-       <div class="absolute bottom-[-10%] right-[10%] w-[300px] h-[300px] rounded-full bg-pink-200/30 blur-[60px] animate-pulse-slow transition-opacity duration-700"
-           [class.opacity-0]="theme.theme() === 'dark'"></div>
-      
-      <!-- DARK MODE: Neon Gradient Orbs -->
-      <div class="absolute top-[-20%] left-[-10%] w-[600px] h-[600px] rounded-full bg-violet-600/20 blur-[120px] animate-drift-slow transition-opacity duration-700"
-           [class.opacity-0]="theme.theme() === 'light'"></div>
-      <div class="absolute bottom-[-10%] right-[-10%] w-[500px] h-[500px] rounded-full bg-pink-600/20 blur-[100px] animate-pulse-slow transition-opacity duration-700"
-           [class.opacity-0]="theme.theme() === 'light'"></div>
-      
-      <!-- Vignette (Stronger in Dark Mode) -->
-      <div class="absolute inset-0 transition-opacity duration-700"
-           [style.background]="'radial-gradient(circle at center, transparent 0%, ' + (theme.theme() === 'dark' ? '#2F2F2F' : 'transparent') + ' 100%)'"></div>
+      <!-- ANIMATED BLOBS (Optimized: Reduced Blur Radius & Count) -->
+      <!-- Only visible in Light Mode to save battery in Dark Mode -->
+      @if (theme.theme() === 'light') {
+        <div class="absolute top-[-10%] left-[-10%] w-[60vw] h-[60vw] rounded-full bg-pink-500/10 blur-[60px] animate-breathe will-change-transform"></div>
+        <div class="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] rounded-full bg-purple-600/10 blur-[60px] animate-breathe-delayed will-change-transform"></div>
+      }
+           
+      <!-- Vignette (Static CSS) -->
+      <div class="absolute inset-0 radial-vignette"></div>
     </div>
   `,
   styles: [`
-    .animate-drift-slow {
-      animation: drift 20s ease-in-out infinite alternate;
+    .radial-vignette {
+      background: radial-gradient(circle at center, transparent 0%, rgba(15, 14, 23, 0.4) 100%);
     }
-    .animate-pulse-slow {
-      animation: pulse-glow 10s ease-in-out infinite alternate;
+    :host-context(.light) .radial-vignette {
+      background: radial-gradient(circle at center, transparent 0%, transparent 100%);
     }
-    @keyframes drift {
-      0% { transform: translate(0, 0); }
-      100% { transform: translate(50px, 30px); }
+    
+    @keyframes breathe {
+      0%, 100% { transform: scale(1) translateZ(0); }
+      50% { transform: scale(1.05) translateZ(0); }
     }
-    @keyframes pulse-glow {
-      0% { transform: scale(1); }
-      100% { transform: scale(1.1); }
-    }
+    
+    .animate-breathe { animation: breathe 15s ease-in-out infinite; }
+    .animate-breathe-delayed { animation: breathe 18s ease-in-out infinite reverse; }
   `],
   changeDetection: ChangeDetectionStrategy.OnPush
 })

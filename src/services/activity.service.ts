@@ -3,15 +3,15 @@ import { Injectable, inject, signal, computed } from '@angular/core';
 import { StorageService } from './storage.service';
 import { Character } from '../models/character.model';
 import { VisualNovel } from '../models/vn.model';
+import { sortActivitiesByRecency, createActivityItem } from '../logic/user/activity-tracker.logic';
 
 export interface ActivityItem {
-  type: 'chat' | 'novel';
+  type: 'chat' | 'novel' | 'web_novel';
   id: string;
   title: string;
   image: string;
   subtitle: string;
   timestamp: number;
-  progress?: number; // 0-100
 }
 
 @Injectable({
@@ -22,7 +22,7 @@ export class ActivityService {
   private readonly KEY = 'demomax_activity_log';
 
   private _activities = signal<ActivityItem[]>([]);
-  readonly recent = computed(() => this._activities().sort((a, b) => b.timestamp - a.timestamp));
+  readonly recent = computed(() => sortActivitiesByRecency(this._activities()));
 
   constructor() {
     const saved = this.storage.getItem<ActivityItem[]>(this.KEY);
@@ -30,31 +30,17 @@ export class ActivityService {
   }
 
   trackChat(char: Character) {
-    this.upsert({
-      type: 'chat',
-      id: char.id,
-      title: char.name,
-      image: char.avatarUrl,
-      subtitle: 'Conversa recente',
-      timestamp: Date.now()
-    });
+    this.upsert(createActivityItem('chat', char.id, char.name, char.avatarUrl, 'Conversa recente'));
   }
 
   trackNovel(vn: VisualNovel, sceneName: string) {
-    this.upsert({
-      type: 'novel',
-      id: vn.id,
-      title: vn.title,
-      image: vn.coverUrl,
-      subtitle: sceneName,
-      timestamp: Date.now()
-    });
+    this.upsert(createActivityItem('novel', vn.id, vn.title, vn.coverUrl, sceneName));
   }
 
   private upsert(item: ActivityItem) {
     this._activities.update(current => {
       const filtered = current.filter(i => !(i.type === item.type && i.id === item.id));
-      const updated = [item, ...filtered].slice(0, 10); // Keep last 10
+      const updated = [item, ...filtered].slice(0, 10); 
       this.storage.setItem(this.KEY, updated);
       return updated;
     });

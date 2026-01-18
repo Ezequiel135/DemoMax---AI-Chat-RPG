@@ -26,11 +26,6 @@ import { BackgroundComponent } from '../../components/visual/background.componen
                     [class.text-slate-500]="currentStep() < step">
                  {{ step }}
                </div>
-               <span class="text-[10px] uppercase font-bold tracking-wider" 
-                     [class.text-pink-400]="currentStep() >= step"
-                     [class.text-slate-600]="currentStep() < step">
-                 @if(step===1) { Identity } @else if(step===2) { Avatar } @else { Sync }
-               </span>
              </div>
              @if (step < 3) {
                <div class="flex-1 h-0.5 bg-slate-800 mt-4 mx-2">
@@ -41,25 +36,21 @@ import { BackgroundComponent } from '../../components/visual/background.componen
            }
         </div>
 
-        <!-- Step 1: Username -->
         @if (currentStep() === 1) {
           <div class="animate-fade-in space-y-6">
-            <h2 class="text-2xl font-bold text-white text-center">Choose your Callsign</h2>
+            <h2 class="text-2xl font-bold text-white text-center">Identidade</h2>
             <div class="space-y-2">
               <label class="text-xs uppercase font-bold text-slate-500">Username</label>
-              <input [(ngModel)]="username" type="text" placeholder="e.g. NeonBlade" 
+              <input [(ngModel)]="username" type="text" placeholder="Ex: NeonBlade" 
                      class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-pink-500 focus:outline-none">
-              <p class="text-xs text-slate-500">This is how characters will address you.</p>
             </div>
-            <button (click)="nextStep()" [disabled]="!username" class="w-full py-3 bg-pink-600 rounded-xl text-white font-bold hover:bg-pink-500 transition-colors disabled:opacity-50">Next</button>
+            <button (click)="nextStep()" [disabled]="!username" class="w-full py-3 bg-pink-600 rounded-xl text-white font-bold hover:bg-pink-500 transition-colors disabled:opacity-50">Próximo</button>
           </div>
         }
 
-        <!-- Step 2: Avatar -->
         @if (currentStep() === 2) {
           <div class="animate-fade-in space-y-6">
-            <h2 class="text-2xl font-bold text-white text-center">Select Avatar</h2>
-            
+            <h2 class="text-2xl font-bold text-white text-center">Avatar</h2>
             <div class="grid grid-cols-3 gap-4">
               @for (av of avatarOptions; track av) {
                 <button (click)="selectedAvatar = av" 
@@ -67,36 +58,25 @@ import { BackgroundComponent } from '../../components/visual/background.componen
                         [class.border-pink-500]="selectedAvatar === av"
                         [class.border-transparent]="selectedAvatar !== av">
                   <img [src]="av" class="w-full h-full object-cover group-hover:scale-110 transition-transform">
-                  @if (selectedAvatar === av) {
-                    <div class="absolute inset-0 bg-pink-500/20 flex items-center justify-center">
-                      <div class="w-6 h-6 bg-pink-500 rounded-full flex items-center justify-center">✓</div>
-                    </div>
-                  }
                 </button>
               }
             </div>
-
             <div class="flex gap-3">
-              <button (click)="currentStep.set(1)" class="flex-1 py-3 border border-slate-600 rounded-xl text-slate-300 hover:text-white">Back</button>
-              <button (click)="nextStep()" class="flex-1 py-3 bg-pink-600 rounded-xl text-white font-bold hover:bg-pink-500">Next</button>
+              <button (click)="currentStep.set(1)" class="flex-1 py-3 border border-slate-600 rounded-xl text-slate-300">Voltar</button>
+              <button (click)="nextStep()" class="flex-1 py-3 bg-pink-600 rounded-xl text-white font-bold">Próximo</button>
             </div>
           </div>
         }
 
-        <!-- Step 3: Bio -->
         @if (currentStep() === 3) {
           <div class="animate-fade-in space-y-6">
-            <h2 class="text-2xl font-bold text-white text-center">Calibrate Personality</h2>
-            <div class="space-y-2">
-              <label class="text-xs uppercase font-bold text-slate-500">User Bio (Optional)</label>
-              <textarea [(ngModel)]="bio" rows="4" placeholder="Tell the AI a bit about yourself..." 
-                     class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white focus:border-pink-500 focus:outline-none resize-none"></textarea>
-              <p class="text-xs text-slate-500">Characters may use this information in conversation.</p>
-            </div>
+            <h2 class="text-2xl font-bold text-white text-center">Personalidade</h2>
+            <textarea [(ngModel)]="bio" rows="4" placeholder="Fale um pouco sobre você..." 
+                     class="w-full bg-slate-800 border border-slate-700 rounded-xl px-4 py-3 text-white resize-none"></textarea>
             
             <div class="flex gap-3">
-              <button (click)="currentStep.set(2)" class="flex-1 py-3 border border-slate-600 rounded-xl text-slate-300 hover:text-white">Back</button>
-              <button (click)="finish()" class="flex-1 py-3 bg-gradient-to-r from-pink-600 to-violet-600 rounded-xl text-white font-bold hover:shadow-lg hover:shadow-pink-500/25 transition-all">Enter World</button>
+              <button (click)="currentStep.set(2)" class="flex-1 py-3 border border-slate-600 rounded-xl text-slate-300">Voltar</button>
+              <button (click)="finish()" class="flex-1 py-3 bg-gradient-to-r from-pink-600 to-violet-600 rounded-xl text-white font-bold">Entrar</button>
             </div>
           </div>
         }

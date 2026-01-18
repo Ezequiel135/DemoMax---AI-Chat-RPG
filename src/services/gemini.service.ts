@@ -1,10 +1,12 @@
 
 import { Injectable, inject } from '@angular/core';
-import { Chat } from '@google/genai';
+import { Chat, Content } from '@google/genai';
 import { AiChatService } from './ai/ai-chat.service';
 import { AiContentService } from './ai/ai-content.service';
+import { ChatMode } from './chat-settings.service';
+import { executeWithRetry } from '../logic/ai/error-handling/retry-strategy.logic';
+import { Message } from '../models/message.model';
 
-// FACADE SERVICE: Delegates to specialized mini-services
 @Injectable({
   providedIn: 'root'
 })
@@ -12,38 +14,32 @@ export class GeminiService {
   private chatService = inject(AiChatService);
   private contentService = inject(AiContentService);
 
-  // CACHE SYSTEM: Guarda múltiplas sessões pausadas na memória
-  // Key: characterId, Value: Chat Session Object
-  private sessionCache = new Map<string, Chat>();
+  // Removido cache de sessão para garantir que cada envio tenha o contexto 
+  // mais atualizado e corrigido (incluindo a mensagem inicial).
+  
+  async createChatSession(characterId: string, systemInstruction: string, mode: ChatMode = 'flash', previousMessages: Message[] = []): Promise<Chat> {
+    // Converte mensagens do app para o formato do Gemini (Content[])
+    const history: Content[] = previousMessages.map(m => ({
+      role: m.role,
+      parts: [{ text: m.text }]
+    }));
 
-  /**
-   * Recupera uma sessão existente ou cria uma nova se não existir.
-   * Não destrói as anteriores automaticamente.
-   */
-  async createChatSession(characterId: string, systemInstruction: string): Promise<Chat> {
-    
-    // 1. Tenta recuperar sessão pausada
-    if (this.sessionCache.has(characterId)) {
-      // console.log(`[GeminiService] Resuming paused session for: ${characterId}`);
-      return this.sessionCache.get(characterId)!;
-    }
-
-    // 2. Cria nova se não existir
-    // console.log(`[GeminiService] Creating new session for: ${characterId}`);
-    const newSession = await this.chatService.createSession(systemInstruction);
-    
-    // 3. Salva no cache
-    this.sessionCache.set(characterId, newSession);
-    
-    return newSession;
+    return executeWithRetry(async () => {
+       // Passamos o histórico para que a IA "leia" o que já aconteceu
+       // Isso resolve o problema dela achar que é o início da conversa
+       return await this.chatService.createSession(systemInstruction, mode, history);
+    });
   }
 
   async sendMessage(chat: Chat, text: string): Promise<string> {
-    return this.chatService.sendMessage(chat, text);
+    return executeWithRetry(async () => {
+       return await this.chatService.sendMessage(chat, text);
+    });
   }
 
+  // Funções auxiliares delegadas para sub-serviços
   async compactMemory(current: string, recent: string): Promise<string> {
-    return this.contentService.compactMemory(current, recent);
+    return executeWithRetry(() => this.contentService.compactMemory(current, recent));
   }
 
   async moderateAndRewrite(name: string, desc: string, inst: string) {
@@ -51,15 +47,10 @@ export class GeminiService {
   }
 
   async generateCharacterImage(prompt: string): Promise<string | null> {
-    return this.contentService.generateImage(prompt);
+    return executeWithRetry(() => this.contentService.generateImage(prompt), 2, 2000);
   }
 
-  /**
-   * MANUAL CLEANUP: Chamado apenas quando o usuário aperta "Limpar Memória".
-   * Esvazia todas as conversas da RAM.
-   */
   clearAllSessions() {
-    this.sessionCache.clear();
-    // console.log("[GeminiService] All sessions wiped from memory.");
+    // No-op (Stateless architecture for robustness)
   }
 }

@@ -9,6 +9,8 @@ import { SocialService } from '../../services/social.service';
 import { SystemAssetsService } from '../../services/core/system-assets.service';
 import { DirectMessage, DirectChat } from '../../models/direct-message.model';
 import { DatabaseService } from '../../services/core/database.service';
+import { getRelativeDateLabel, isSameDay } from '../../logic/core/time-utils.logic';
+import { ToastService } from '../../services/toast.service';
 
 @Component({
   selector: 'app-dm-thread',
@@ -28,17 +30,17 @@ import { DatabaseService } from '../../services/core/database.service';
                <a [routerLink]="['/u', chat.otherUser?.username]" class="flex items-center gap-3 cursor-pointer group">
                   <div class="relative">
                      <img [src]="chat.otherUser?.avatarUrl || assets.getIcon()" class="w-9 h-9 rounded-full object-cover border border-slate-200 dark:border-white/10 group-hover:border-pink-500 transition-colors">
-                     @if(isFriend()) {
+                     @if(isFriend() && !isBlocked()) {
                        <div class="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-emerald-500 border-2 border-white dark:border-[#0F0E17] rounded-full"></div>
                      }
                   </div>
                   <div class="flex flex-col">
                      <span class="font-bold text-sm text-slate-900 dark:text-white leading-none flex items-center gap-1">
                         {{ chat.otherUser?.username }}
-                        @if(isFriend()) { <span class="text-[8px] text-emerald-500 bg-emerald-500/10 px-1 rounded uppercase tracking-wider">Amigo</span> }
+                        @if(isBlocked()) { <span class="text-[8px] bg-red-500 text-white px-1 rounded uppercase">Bloqueado</span> }
                      </span>
                      <span class="text-[10px] text-slate-500 dark:text-slate-400">
-                        {{ isFriend() ? 'Online agora' : 'Não segue você' }}
+                        {{ getStatusText() }}
                      </span>
                   </div>
                </a>
@@ -68,7 +70,7 @@ import { DatabaseService } from '../../services/core/database.service';
          <!-- Messages Grouped -->
          @for (msg of messages(); track msg.id; let i = $index) {
             
-            <!-- Date Separator (Simple Logic) -->
+            <!-- Date Separator -->
             @if (showDateSeparator(i)) {
                <div class="flex justify-center my-4">
                   <span class="text-[10px] font-bold text-slate-400 bg-slate-100 dark:bg-slate-800 px-3 py-1 rounded-full uppercase tracking-wider">
@@ -116,7 +118,7 @@ import { DatabaseService } from '../../services/core/database.service';
       </div>
 
       <!-- INPUT AREA (Conditional) -->
-      @if (isFriend()) {
+      @if (canMessage()) {
          <div class="p-3 bg-white dark:bg-[#0F0E17] flex items-center gap-3 border-t border-slate-100 dark:border-white/5">
             <div class="flex items-end gap-2 p-1.5 bg-slate-50 dark:bg-[#15151A] rounded-[24px] flex-1 border border-slate-200 dark:border-white/10 focus-within:border-blue-500/50 focus-within:ring-2 focus-within:ring-blue-500/10 transition-all">
                
@@ -140,12 +142,19 @@ import { DatabaseService } from '../../services/core/database.service';
       } @else {
          <!-- Blocked State -->
          <div class="p-6 bg-slate-50 dark:bg-[#15151A] border-t border-slate-200 dark:border-white/10 text-center">
-            <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">
-               Você não pode responder a esta conversa.
-            </p>
-            <div class="inline-block px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300">
-               ⚠️ É necessário ser amigo (seguir de volta)
-            </div>
+            @if (isBlocked()) {
+                <p class="text-sm text-red-500 font-bold mb-1">
+                   Usuário Bloqueado
+                </p>
+                <p class="text-xs text-slate-500">Você não pode enviar mensagens para quem você bloqueou.</p>
+            } @else {
+                <p class="text-sm text-slate-500 dark:text-slate-400 mb-3">
+                   Você não pode responder a esta conversa.
+                </p>
+                <div class="inline-block px-4 py-2 bg-slate-200 dark:bg-slate-800 rounded-lg text-xs font-bold text-slate-600 dark:text-slate-300">
+                   ⚠️ É necessário ser amigo (seguir de volta)
+                </div>
+            }
          </div>
       }
 
@@ -159,17 +168,28 @@ export class DmThreadComponent implements AfterViewChecked {
   socialService = inject(SocialService);
   db = inject(DatabaseService);
   assets = inject(SystemAssetsService);
+  toast = inject(ToastService);
 
   chatId = '';
   chatInfo = signal<DirectChat | undefined>(undefined);
   messages = signal<DirectMessage[]>([]);
   inputText = '';
 
-  // Check mutual friendship based on username
   isFriend = computed(() => {
      const chat = this.chatInfo();
      if (!chat || !chat.otherUser) return false;
      return this.socialService.isMutual(chat.otherUser.username);
+  });
+
+  isBlocked = computed(() => {
+     const chat = this.chatInfo();
+     if (!chat || !chat.otherUser) return false;
+     return this.socialService.isBlocked(chat.otherUser.username);
+  });
+
+  canMessage = computed(() => {
+     // Permite msg se for amigo E não estiver bloqueado
+     return this.isFriend() && !this.isBlocked();
   });
 
   @ViewChild('scrollContainer') private scrollContainer!: ElementRef;
@@ -188,13 +208,10 @@ export class DmThreadComponent implements AfterViewChecked {
   }
 
   async loadData() {
-    // 1. Get Chat Info
     const chat = await this.db.getById<DirectChat>('dm_chats_v1', this.chatId);
     if (chat) {
       this.chatInfo.set(chat);
     }
-
-    // 2. Get Messages
     const msgs = await this.dmService.getMessages(this.chatId);
     this.messages.set(msgs);
   }
@@ -212,23 +229,27 @@ export class DmThreadComponent implements AfterViewChecked {
 
   async send() {
     if (!this.inputText.trim()) return;
-    if (!this.isFriend()) return; // Security check
+    
+    if (this.isBlocked()) {
+        this.toast.show("Você bloqueou este usuário.", "error");
+        return;
+    }
+    if (!this.isFriend()) {
+        this.toast.show("Vocês precisam ser amigos.", "error");
+        return;
+    }
     
     const text = this.inputText;
     this.inputText = ''; 
     
-    // Optimistic Update
-    const tempMsg: DirectMessage = {
-       id: 'temp',
-       senderId: this.auth.currentUser()!.id,
-       text: text,
-       timestamp: Date.now(),
-       read: false
-    };
-    this.messages.update(m => [...m, tempMsg]);
-
     await this.dmService.sendMessage(this.chatId, text);
-    this.loadData(); // Sync real data
+    this.loadData();
+  }
+
+  getStatusText() {
+      if (this.isBlocked()) return 'Bloqueado';
+      if (this.isFriend()) return 'Online agora';
+      return 'Não segue você';
   }
 
   scrollToBottom() {
@@ -237,23 +258,12 @@ export class DmThreadComponent implements AfterViewChecked {
     } catch(err) { }
   }
 
-  // Helper for Date Separators
   showDateSeparator(index: number): boolean {
      if (index === 0) return true;
-     const curr = new Date(this.messages()[index].timestamp);
-     const prev = new Date(this.messages()[index - 1].timestamp);
-     return curr.getDate() !== prev.getDate();
+     return !isSameDay(this.messages()[index].timestamp, this.messages()[index - 1].timestamp);
   }
 
   getDateLabel(ts: number): string {
-     const date = new Date(ts);
-     const today = new Date();
-     if (date.toDateString() === today.toDateString()) return 'Hoje';
-     
-     const yesterday = new Date();
-     yesterday.setDate(today.getDate() - 1);
-     if (date.toDateString() === yesterday.toDateString()) return 'Ontem';
-     
-     return date.toLocaleDateString();
+     return getRelativeDateLabel(ts);
   }
 }

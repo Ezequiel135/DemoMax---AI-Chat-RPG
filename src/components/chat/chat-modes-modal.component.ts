@@ -2,6 +2,9 @@
 import { Component, output, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { EconomyService } from '../../services/economy.service';
+import { ChatSettingsService, ChatMode } from '../../services/chat-settings.service';
+import { CharacterService } from '../../services/character.service'; // Para saber qual char está ativo (via service ou input, aqui usaremos input no futuro, mas por enquanto pegamos do settings service que mantem estado)
+import { ActivatedRoute } from '@angular/router';
 
 @Component({
   selector: 'app-chat-modes-modal',
@@ -13,64 +16,77 @@ import { EconomyService } from '../../services/economy.service';
         
         <div class="p-4 border-b border-slate-800 text-center">
            <h3 class="font-bold text-pink-400 text-lg">Modo de Chat</h3>
+           <p class="text-xs text-slate-500">Escolha a inteligência da IA</p>
         </div>
 
         <div class="p-4 space-y-3">
            
            <!-- PRO -->
-           <div class="p-4 rounded-xl border border-pink-500/50 bg-pink-900/10 relative overflow-hidden group cursor-pointer hover:bg-pink-900/20 transition-colors">
+           <div (click)="selectMode('pro')" 
+                class="p-4 rounded-xl border relative overflow-hidden group cursor-pointer transition-all"
+                [class.border-yellow-500]="currentMode() === 'pro'"
+                [class.bg-yellow-900_20]="currentMode() === 'pro'"
+                [class.border-slate-700]="currentMode() !== 'pro'"
+                [class.bg-slate-800_50]="currentMode() !== 'pro'">
+              
               <div class="flex justify-between items-start mb-1">
                  <div class="flex items-center gap-2">
-                    <span class="text-yellow-400">☀️</span>
+                    <span class="text-yellow-400 text-xl">☀️</span>
                     <span class="font-bold text-white">Pro</span>
                  </div>
-                 <div class="text-white font-bold text-sm">20 💗</div>
+                 @if(currentMode() === 'pro') {
+                    <span class="text-xs bg-yellow-500 text-black font-bold px-2 py-0.5 rounded-full">ATIVO</span>
+                 }
               </div>
-              <p class="text-xs text-slate-400">Melhor escolha, personagens e enredo melhores.</p>
+              <p class="text-xs text-slate-400">Melhor escolha. Raciocínio lógico complexo e memória aprimorada.</p>
            </div>
 
            <!-- PRIME -->
-           <div class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-yellow-500/50 transition-colors">
+           <div (click)="selectMode('prime')" 
+                class="p-4 rounded-xl border cursor-pointer transition-all"
+                [class.border-purple-500]="currentMode() === 'prime'"
+                [class.bg-purple-900_20]="currentMode() === 'prime'"
+                [class.border-slate-700]="currentMode() !== 'prime'"
+                [class.bg-slate-800_50]="currentMode() !== 'prime'">
+                
               <div class="flex justify-between items-start mb-1">
                  <div class="flex items-center gap-2">
-                    <span class="text-yellow-400">👑</span>
+                    <span class="text-purple-400 text-xl">👑</span>
                     <span class="font-bold text-white">Prime</span>
                  </div>
-                 <div class="text-white font-bold text-sm">20 💗</div>
+                 @if(currentMode() === 'prime') {
+                    <span class="text-xs bg-purple-500 text-white font-bold px-2 py-0.5 rounded-full">ATIVO</span>
+                 }
               </div>
-              <p class="text-xs text-slate-400">Histórias mais ricas, emoções mais profundas.</p>
+              <p class="text-xs text-slate-400">Histórias mais ricas, criatividade alta e emoções profundas.</p>
            </div>
 
            <!-- FLASH -->
-           <div class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-blue-500/50 transition-colors">
+           <div (click)="selectMode('flash')" 
+                class="p-4 rounded-xl border cursor-pointer transition-all"
+                [class.border-blue-500]="currentMode() === 'flash'"
+                [class.bg-blue-900_20]="currentMode() === 'flash'"
+                [class.border-slate-700]="currentMode() !== 'flash'"
+                [class.bg-slate-800_50]="currentMode() !== 'flash'">
+                
               <div class="flex justify-between items-start mb-1">
                  <div class="flex items-center gap-2">
-                    <span class="text-blue-400">🌟</span>
+                    <span class="text-blue-400 text-xl">🌟</span>
                     <span class="font-bold text-white">Flash</span>
                  </div>
-                 <div class="text-white font-bold text-sm">5 💗</div>
+                 @if(currentMode() === 'flash') {
+                    <span class="text-xs bg-blue-500 text-white font-bold px-2 py-0.5 rounded-full">ATIVO</span>
+                 }
               </div>
-              <p class="text-xs text-slate-400">Textos mais detalhados, respostas mais longas.</p>
+              <p class="text-xs text-slate-400">Padrão. Respostas rápidas e equilibradas.</p>
            </div>
 
-           <!-- LITE -->
-           <div class="p-4 rounded-xl border border-slate-700 bg-slate-800/50 cursor-pointer hover:border-green-500/50 transition-colors">
-              <div class="flex justify-between items-start mb-1">
-                 <div class="flex items-center gap-2">
-                    <span class="text-green-400">✨</span>
-                    <span class="font-bold text-white">Lite</span>
-                 </div>
-                 <div class="text-white font-bold text-sm">2 💗</div>
-              </div>
-              <p class="text-xs text-slate-400">Conversas leves, respostas rápidas.</p>
-           </div>
-
-           <div class="text-right pt-2 text-xs text-pink-300 font-bold">
-              Meus Corações: {{ economy.sakuraCoins() }} 💗
+           <div class="text-right pt-2 text-xs text-slate-500 font-bold">
+              Alterar o modo reinicia o contexto imediato da IA.
            </div>
            
-           <button (click)="close.emit()" class="w-full py-3 bg-pink-500 hover:bg-pink-600 text-white font-bold rounded-xl transition-colors">
-              Começar a conversar
+           <button (click)="close.emit()" class="w-full py-3 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl transition-colors mt-2">
+              Voltar
            </button>
 
         </div>
@@ -81,5 +97,36 @@ import { EconomyService } from '../../services/economy.service';
 })
 export class ChatModesModalComponent {
   economy = inject(EconomyService);
+  settings = inject(ChatSettingsService);
+  route = inject(ActivatedRoute);
+  
   close = output();
+
+  // Helper to get active character ID from URL since modal is inside ChatComponent context usually
+  // But purely relying on Settings Service state is safer as ChatComponent loads it.
+  currentMode() {
+    return this.settings.currentSettings().chatMode;
+  }
+
+  selectMode(mode: ChatMode) {
+    // Need character ID to save setting. 
+    // We assume ChatSettingsService.currentSettings is already loaded for the correct character 
+    // because ChatComponent calls loadSettings(id) on init.
+    // However, saveSettings requires an ID. 
+    // We can parse it from URL or use a trick.
+    
+    // Better Approach: Update the signal in service, and let the service handle persistence logic 
+    // IF we knew the ID. Since we are inside the modal which is inside ChatComponent, 
+    // ChatComponent could pass the ID, but for now let's grab from URL to be robust.
+    
+    const urlParts = window.location.hash.split('/');
+    const id = urlParts[urlParts.length - 1]; // /chat/:id
+    
+    if (id) {
+       this.settings.updateSetting(id, 'chatMode', mode);
+    }
+    
+    // Close modal
+    this.close.emit();
+  }
 }

@@ -1,73 +1,86 @@
 
 import { Injectable, inject } from '@angular/core';
 import { AiConfigService } from './ai-config.service';
+import { ChatHistoryService } from '../chat-history.service';
 import { Character } from '../../models/character.model';
 import { PhoneData } from '../../models/phone-content.model';
+import { BankGeneratorLogic } from '../../logic/phone/generators/bank-generator.logic';
+import { MapGeneratorLogic } from '../../logic/phone/generators/map-generator.logic';
+import { LanguageDetectorUtils } from '../../logic/phone/utils/language-detector.utils';
 
 @Injectable({
   providedIn: 'root'
 })
 export class PhoneGeneratorService {
   private config = inject(AiConfigService);
+  private historyService = inject(ChatHistoryService);
 
-  async hackPhone(character: Character): Promise<PhoneData | null> {
+  async hackPhone(character: Character, financialContext: string = ''): Promise<PhoneData | null> {
+    
+    // 1. Coleta dados de contexto
+    const chatData = this.historyService.getChatData(character.id);
+    const targetLang = LanguageDetectorUtils.detectTargetLanguage(chatData.messages);
+    
+    // 2. Gera dados determinísticos (Banco, Mapa)
+    const bankData = BankGeneratorLogic.generate(character);
+    const location = MapGeneratorLogic.generate(character);
+    const battery = Math.floor(Math.random() * 80) + 20;
+
+    // 3. Monta Prompt para dados criativos (Contatos, Notas, Galeria)
     const prompt = `
-      [TASK]
-      Generate a realistic JSON dump of a smartphone belonging to the character below. 
-      The content must be immersive, strictly following their personality, lore, and universe.
-      
-      [CHARACTER]
-      Name: ${character.name}
+      [TASK] Generate realistic smartphone content for character "${character.name}".
+      [CONTEXT]
       Role: ${character.tagline}
       Personality: ${character.systemInstruction}
+      Language: ${targetLang}
       
       [REQUIREMENTS]
-      1. CONTACTS: Create 3-4 chat threads with OTHER characters from their universe (e.g., Mom, Boss, Rival, Secret Lover). Include realistic message history for each.
-      2. BROWSER: 5 realistic search history items based on their recent thoughts/worries.
-      3. BANK: Current balance and 4-5 recent transactions (spending habits).
-      4. NOTES: 2-3 personal notes (diary, to-do list, or secret code).
-      5. GALLERY: 4 descriptions of photos they recently took.
-      6. LOCATION: A cool name for their current location in their universe.
+      Generate a JSON object with:
+      1. 'contacts': Array of 5 people (friends/family/rivals). Fields: 'name', 'lastMessage' (short realistic text), 'unreadCount' (0-5), 'avatarSeed' (short string for id), 'isSensitive' (boolean).
+      2. 'notes': Array of 3 recent notes. Fields: 'title', 'content', 'date'. Can include secrets or daily tasks.
+      3. 'gallery': Array of 4 photo descriptions. Fields: 'description' (short), 'visualPrompt' (for AI generation), 'timestamp'.
+      4. 'browserHistory': Array of 3 recent URLs or Search Terms relevant to their personality.
       
-      [OUTPUT FORMAT]
-      Return ONLY valid JSON matching this schema. Do not include markdown formatting like \`\`\`json.
-      {
-        "ownerName": "string",
-        "modelType": "string",
-        "currentLocation": "string",
-        "batteryLevel": number (1-100),
-        "contacts": [
-          { "name": "string", "avatarSeed": "string (short random string)", "lastMessage": "string", "history": [{ "sender": "me"|"other", "text": "string", "time": "string" }] }
-        ],
-        "browserHistory": ["string"],
-        "bankAccount": {
-          "balance": "string",
-          "transactions": [{ "merchant": "string", "amount": "string", "date": "string", "type": "debit"|"credit" }]
-        },
-        "notes": [{ "title": "string", "content": "string", "date": "string" }],
-        "gallery": [{ "description": "string", "visualPrompt": "string", "timestamp": "string" }]
-      }
+      [FORMAT]
+      Return ONLY valid JSON. No markdown blocks.
     `;
 
     try {
       const response = await this.config.client.models.generateContent({
         model: 'gemini-2.5-flash',
         contents: prompt,
-        config: {
-          responseMimeType: 'application/json'
-        }
+        config: { responseMimeType: 'application/json' }
       });
 
-      const text = response.text;
-      if (!text) return null;
+      const aiData = JSON.parse(response.text || '{}');
 
-      // CLEANUP: Remove potential markdown code blocks if the model ignores the instruction
-      const cleanedText = text.replace(/```json/g, '').replace(/```/g, '').trim();
+      // 4. Mescla dados reais da IA com dados lógicos
+      return {
+        ownerName: character.name,
+        modelType: 'SmartDevice OS',
+        currentLocation: location,
+        batteryLevel: battery,
+        bankAccount: bankData, 
+        contacts: aiData.contacts || [],
+        notes: aiData.notes || [],
+        gallery: aiData.gallery || [],
+        browserHistory: aiData.browserHistory || []
+      };
 
-      return JSON.parse(cleanedText) as PhoneData;
     } catch (e) {
       console.error("Phone Hack Failed", e);
-      return null;
+      // Fallback básico se a IA falhar
+      return {
+        ownerName: character.name,
+        modelType: 'ErrorPhone 404',
+        currentLocation: 'Unknown',
+        batteryLevel: 10,
+        bankAccount: bankData,
+        contacts: [{ name: 'Mãe', lastMessage: 'Me liga?', avatarSeed: 'mom', history: [] }],
+        notes: [],
+        gallery: [],
+        browserHistory: []
+      };
     }
   }
 }

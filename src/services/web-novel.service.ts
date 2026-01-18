@@ -3,7 +3,9 @@ import { Injectable, signal, inject } from '@angular/core';
 import { WebNovel } from '../models/web-novel.model';
 import { DatabaseService } from './core/database.service';
 import { AuthService } from './auth.service';
-import { SystemAssetsService } from './core/system-assets.service'; // Injected
+import { SystemAssetsService } from './core/system-assets.service'; 
+import { SocialService } from './social.service'; // Added
+import { createNewWebNovel } from '../logic/web-novel/wn-factory.logic';
 
 @Injectable({
   providedIn: 'root'
@@ -11,7 +13,8 @@ import { SystemAssetsService } from './core/system-assets.service'; // Injected
 export class WebNovelService {
   private db = inject(DatabaseService);
   private auth = inject(AuthService);
-  private assets = inject(SystemAssetsService); // Injected
+  private assets = inject(SystemAssetsService); 
+  private social = inject(SocialService); // Injected
   
   private readonly DB_COLLECTION = 'web_novels_v1';
 
@@ -19,37 +22,37 @@ export class WebNovelService {
   readonly novels = this._novels.asReadonly();
   
   private _activeNovelId: string | null = null;
+  private _initialized = false;
 
-  // Mock Inicial
   private readonly SYSTEM_NOVEL: WebNovel = {
       id: 'wn_demo_1',
-      creatorId: 'system',
-      author: 'System Author',
+      creatorId: 'admin_ezequiel',
+      author: 'わっせ', 
       title: 'O Rei dos Demônios Reencarnado',
       description: 'Após ser derrotado pelo herói, o Lorde Demônio acorda no corpo de um estudante comum no Brasil.',
-      coverUrl: 'https://i.ibb.co/hxSz0SJr/Background-Eraser-20251224-125356967.png', // Keep as string or better, use service in a real constructor, but here it's static prop. For static, we keep the URL, but the service handles the caching for dynamic ones.
+      coverUrl: 'https://i.ibb.co/hxSz0SJr/Background-Eraser-20251224-125356967.png',
       tags: ['Isekai', 'Ação', 'Comédia'],
       status: 'Ongoing',
       chapters: [
         { id: 'ch1', title: 'Capítulo 1: O Despertar', content: 'Eu abri meus olhos. O teto era branco. Onde estava meu castelo?', publishedAt: Date.now() }
       ],
-      readCount: 1540,
-      likes: 320,
+      readCount: 0,
+      likes: 0,
       createdAt: Date.now(),
       updatedAt: Date.now()
   };
 
-  constructor() {
-    // Update system novel with cached asset URL
-    this.SYSTEM_NOVEL.coverUrl = this.assets.getIcon();
-    this.loadWebNovels();
-  }
+  constructor() {}
 
-  private async loadWebNovels() {
+  async initializeData() {
+    if (this._initialized) return;
+    this.SYSTEM_NOVEL.coverUrl = this.assets.getIcon();
+
     try {
       const stored = await this.db.getAll<WebNovel>(this.DB_COLLECTION);
       const merged = [this.SYSTEM_NOVEL, ...stored];
       this._novels.set(merged);
+      this._initialized = true;
     } catch (e) {
       this._novels.set([this.SYSTEM_NOVEL]);
     }
@@ -57,13 +60,14 @@ export class WebNovelService {
 
   getNovelById(id: string): WebNovel | undefined {
     this._activeNovelId = id;
-    return this._novels().find(n => n.id === id);
+    let n = this._novels().find(n => n.id === id);
+    if (!n && id === this.SYSTEM_NOVEL.id) return this.SYSTEM_NOVEL;
+    return n;
   }
 
   async saveNovel(novel: WebNovel) {
     novel.updatedAt = Date.now();
     
-    // UI Update
     this._novels.update(current => {
       const index = current.findIndex(n => n.id === novel.id);
       if (index >= 0) {
@@ -74,35 +78,33 @@ export class WebNovelService {
       return [novel, ...current];
     });
 
-    // DB Update
-    const toSave = this._novels().filter(n => n.creatorId !== 'system');
+    const toSave = this._novels().filter(n => n.creatorId !== 'admin_ezequiel');
     await this.db.saveAll(this.DB_COLLECTION, toSave);
   }
 
   async deleteNovel(id: string) {
     this._novels.update(current => current.filter(n => n.id !== id));
-    
-    const toSave = this._novels().filter(n => n.creatorId !== 'system');
+    const toSave = this._novels().filter(n => n.creatorId !== 'admin_ezequiel');
     await this.db.saveAll(this.DB_COLLECTION, toSave);
   }
 
   createEmpty(): WebNovel {
     const user = this.auth.currentUser();
-    return {
-      id: `wn_${Date.now()}`,
-      creatorId: user?.id || 'guest',
-      author: user?.username || 'Autor',
-      title: 'Sem Título',
-      description: 'Sinopse da sua história...',
-      coverUrl: this.assets.getIcon(),
-      tags: [],
-      status: 'Ongoing',
-      chapters: [],
-      readCount: 0,
-      likes: 0,
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    };
+    return createNewWebNovel(
+      user?.id || 'guest',
+      user?.username || 'Autor',
+      this.assets.getIcon()
+    );
+  }
+
+  // --- LIKE LOGIC ---
+  toggleLike(id: string) {
+    this.social.toggleWebNovelLike(id);
+    const novel = this.getNovelById(id);
+    if (novel) {
+       const isLiked = this.social.isWebNovelLiked(id);
+       novel.likes = (novel.likes || 0) + (isLiked ? 1 : -1);
+    }
   }
 
   releaseMemory() {

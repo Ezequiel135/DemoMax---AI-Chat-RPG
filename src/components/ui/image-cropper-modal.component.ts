@@ -1,26 +1,22 @@
 
-import { Component, input, output, ViewChild, ElementRef, signal, AfterViewInit } from '@angular/core';
+import { Component, input, output, ViewChild, ElementRef, AfterViewInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { calculateCropDimensions, drawImageOnCanvas } from '../../logic/visual/crop-math.logic';
 
 @Component({
   selector: 'app-image-cropper-modal',
-  standalone: true,
   imports: [CommonModule],
   template: `
-    <!-- ALINHAMENTO SUPERIOR: items-start + pt-[15dvh] para focar onde a linha verde estava -->
     <div class="fixed inset-0 z-[200] flex items-start justify-center pt-[15dvh] px-4 bg-black/90 backdrop-blur-md animate-fade-in" 
          (touchmove)="$event.preventDefault()"> 
       
-      <!-- Container com altura segura (max-h-[75dvh]) para não vazar em baixo -->
       <div class="bg-slate-900 border border-slate-700 rounded-3xl w-full max-w-lg shadow-2xl flex flex-col max-h-[75dvh] h-auto overflow-hidden">
         
-        <!-- Header -->
         <div class="p-4 border-b border-slate-800 flex justify-between items-center shrink-0 z-20 bg-slate-900">
            <h3 class="text-white font-bold">Ajustar Imagem</h3>
            <button (click)="cancel.emit()" class="text-slate-400 p-2 hover:text-white rounded-full hover:bg-white/10 transition-colors">✕</button>
         </div>
 
-        <!-- Canvas Area (Flexível) -->
         <div #container class="relative flex-1 bg-black overflow-hidden select-none cursor-move flex items-center justify-center touch-none w-full min-h-[250px]"
              (mousedown)="startDrag($event)"
              (touchstart)="startDrag($event)"
@@ -31,7 +27,6 @@ import { CommonModule } from '@angular/common';
            
            <canvas #canvas class="block pointer-events-none"></canvas>
            
-           <!-- Overlay Escura com "Buraco" -->
            <div class="absolute pointer-events-none border-black/60 box-content shadow-[0_0_0_1px_rgba(255,255,255,0.5)] z-10"
                 [style.border-width.px]="borderSize"
                 [style.border-radius]="round() ? '50%' : '12px'"
@@ -41,7 +36,6 @@ import { CommonModule } from '@angular/common';
                 [style.left.px]="(containerWidth - viewportWidth) / 2 - borderSize">
            </div>
            
-           <!-- Grid Guia -->
            <div class="absolute pointer-events-none border border-white/30 opacity-50 z-10"
                 [style.width.px]="viewportWidth"
                 [style.height.px]="viewportHeight"
@@ -55,7 +49,6 @@ import { CommonModule } from '@angular/common';
 
         </div>
 
-        <!-- Controles -->
         <div class="p-5 bg-slate-900 space-y-4 shrink-0 z-20 border-t border-slate-800">
            <div class="flex items-center gap-4">
               <span class="text-xs text-slate-500 font-bold uppercase w-10">Zoom</span>
@@ -100,17 +93,9 @@ export class ImageCropperModalComponent implements AfterViewInit {
         this.canvasRef.nativeElement.width = this.containerWidth;
         this.canvasRef.nativeElement.height = this.containerHeight;
 
-        const padding = 40;
-        const maxW = this.containerWidth - padding;
-        const maxH = this.containerHeight - padding;
-
-        if (maxW / this.aspectRatio() < maxH) {
-            this.viewportWidth = maxW;
-            this.viewportHeight = maxW / this.aspectRatio();
-        } else {
-            this.viewportHeight = maxH;
-            this.viewportWidth = maxH * this.aspectRatio();
-        }
+        const dims = calculateCropDimensions(this.containerWidth, this.containerHeight, this.aspectRatio());
+        this.viewportWidth = dims.width;
+        this.viewportHeight = dims.height;
 
         this.img.src = this.imageBase64();
         this.img.onload = () => {
@@ -132,13 +117,7 @@ export class ImageCropperModalComponent implements AfterViewInit {
     const cx = this.containerWidth / 2;
     const cy = this.containerHeight / 2;
     
-    const w = this.img.width * this.scale;
-    const h = this.img.height * this.scale;
-
-    ctx.save();
-    ctx.translate(cx + this.posX, cy + this.posY);
-    ctx.drawImage(this.img, -w/2, -h/2, w, h);
-    ctx.restore();
+    drawImageOnCanvas(ctx, this.img, { scale: this.scale, posX: this.posX, posY: this.posY }, { cx, cy });
   }
 
   startDrag(e: any) { 

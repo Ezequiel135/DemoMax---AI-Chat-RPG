@@ -1,70 +1,55 @@
 
-import { Injectable, signal } from '@angular/core';
-
-export interface Particle {
-  id: number;
-  x: number;
-  y: number;
-  color: string;
-  size: number;
-  velocity: { x: number; y: number };
-  life: number;
-}
+import { Injectable, signal, NgZone, inject } from '@angular/core';
+import { Particle, createConfettiExplosion, updateParticles } from '../logic/visual/particle-engine.logic';
 
 @Injectable({
   providedIn: 'root'
 })
 export class VisualEffectsService {
+  private ngZone = inject(NgZone);
   particles = signal<Particle[]>([]);
   private nextId = 0;
+  private isAnimating = false;
 
-  triggerConfetti(x: number, y: number, count = 20) {
-    const colors = ['#ec4899', '#8b5cf6', '#f472b6', '#fbbf24', '#ffffff'];
-    const newParticles: Particle[] = [];
-
-    for (let i = 0; i < count; i++) {
-      const angle = Math.random() * Math.PI * 2;
-      const speed = 2 + Math.random() * 5;
-      
-      newParticles.push({
-        id: this.nextId++,
-        x: x,
-        y: y,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: 4 + Math.random() * 6,
-        velocity: {
-          x: Math.cos(angle) * speed,
-          y: Math.sin(angle) * speed - 5 // Initial upward burst
-        },
-        life: 1.0
-      });
-    }
+  triggerConfetti(x: number, y: number, count = 15) {
+    // Reduzido count padrão para otimização em mobile
+    const newParticles = createConfettiExplosion(x, y, count, this.nextId);
+    this.nextId += newParticles.length;
 
     this.particles.update(p => [...p, ...newParticles]);
-    this.animate();
+    
+    if (!this.isAnimating) {
+      this.isAnimating = true;
+      // Executa fora do Angular Zone para não disparar Change Detection a cada frame (Performance boost massivo)
+      this.ngZone.runOutsideAngular(() => {
+        this.animate();
+      });
+    }
   }
 
   private animate() {
+    if (!this.isAnimating) return;
+
     requestAnimationFrame(() => {
-      let activeParticles = this.particles();
+      const currentParticles = this.particles();
       
-      if (activeParticles.length === 0) return;
+      if (currentParticles.length === 0) {
+        this.isAnimating = false;
+        return;
+      }
 
-      activeParticles = activeParticles.map(p => ({
-        ...p,
-        x: p.x + p.velocity.x,
-        y: p.y + p.velocity.y,
-        velocity: {
-          x: p.velocity.x * 0.98, // Air resistance
-          y: p.velocity.y + 0.3   // Gravity
-        },
-        life: p.life - 0.02
-      })).filter(p => p.life > 0);
+      const nextParticles = updateParticles(currentParticles);
+      
+      // Só atualiza o sinal (e dispara a UI) se houver mudança relevante ou em intervalos
+      // Mas para fluidez, precisamos atualizar. O segredo é ter poucas partículas.
+      this.ngZone.run(() => {
+         this.particles.set(nextParticles);
+      });
 
-      this.particles.set(activeParticles);
-
-      if (activeParticles.length > 0) {
+      if (nextParticles.length > 0) {
         this.animate();
+      } else {
+        this.isAnimating = false;
       }
     });
   }

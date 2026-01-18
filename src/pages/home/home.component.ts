@@ -28,16 +28,21 @@ export class HomeComponent {
   activeCategory = signal<Category>('for_you');
   searchQuery = signal('');
 
-  // Helper to normalize items for the grid
+  constructor() {
+    // Ensure all data services are initialized
+    this.charService.initializeData();
+    this.vnService.initializeData();
+    this.wnService.initializeData();
+  }
+
   private normalize(item: any, type: 'char' | 'novel' | 'web_novel') {
     return { type, data: item, date: item.createdAt || 0, score: (item.likes || item.favoriteCount || 0) };
   }
 
-  // CORE FEED LOGIC
   feed = computed(() => {
     const category = this.activeCategory();
     
-    // Get all raw data
+    // Direct signal access guarantees reactivity
     const chars = this.charService.recommended().map(c => this.normalize(c, 'char'));
     const vns = this.vnService.novels().map(n => this.normalize(n, 'novel'));
     const wns = this.wnService.novels().map(n => this.normalize(n, 'web_novel'));
@@ -46,11 +51,9 @@ export class HomeComponent {
 
     switch (category) {
       case 'recent':
-        // Sort by Date Descending
         return allItems.sort((a, b) => b.date - a.date);
       
       case 'famous':
-        // Sort by Popularity (Mock logic using likes/favorites)
         return allItems.sort((a, b) => {
            const scoreA = typeof a.score === 'string' ? parseFloat(a.score) * 1000 : a.score;
            const scoreB = typeof b.score === 'string' ? parseFloat(b.score) * 1000 : b.score;
@@ -68,7 +71,7 @@ export class HomeComponent {
 
       case 'for_you':
       default:
-        // True Shuffle Mix
+        // Simple shuffle for now, can be sophisticated later
         return allItems.sort(() => Math.random() - 0.5);
     }
   });
@@ -89,10 +92,12 @@ export class HomeComponent {
   }
 
   navigateToItem(item: any) {
-    if (item.type === 'chat') { // From Activity Service
+    if (item.type === 'chat') { 
       this.router.navigate(['/chat', item.id]);
-    } else if (item.type === 'novel') { // From Activity Service
+    } else if (item.type === 'novel') { 
       this.router.navigate(['/vn/play', item.id]);
+    } else if (item.type === 'web_novel') {
+      this.router.navigate(['/novel/read', item.id]);
     }
   }
 }

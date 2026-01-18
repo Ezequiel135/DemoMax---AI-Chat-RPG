@@ -9,6 +9,8 @@ export interface PhoneContact {
   name: string;
   avatarSeed: string; // For picsum
   lastMessage: string;
+  unreadCount?: number; // Novas mensagens não vistas
+  isSensitive?: boolean; // Se for vergonhoso/privado
   history: PhoneMessage[];
 }
 

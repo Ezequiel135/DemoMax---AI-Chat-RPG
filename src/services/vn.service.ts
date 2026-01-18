@@ -3,8 +3,10 @@ import { Injectable, signal, inject } from '@angular/core';
 import { VisualNovel } from '../models/vn.model';
 import { DatabaseService } from './core/database.service';
 import { AuthService } from './auth.service';
-import { SystemAssetsService } from './core/system-assets.service'; // Injected
+import { SystemAssetsService } from './core/system-assets.service'; 
+import { SocialService } from './social.service'; // Added
 import { MOCK_VNS } from '../data/mock-vns.data';
+import { createNewVisualNovel } from '../logic/vn/vn-factory.logic';
 
 @Injectable({
   providedIn: 'root'
@@ -12,7 +14,8 @@ import { MOCK_VNS } from '../data/mock-vns.data';
 export class VnService {
   private db = inject(DatabaseService);
   private auth = inject(AuthService);
-  private assets = inject(SystemAssetsService); // Injected
+  private assets = inject(SystemAssetsService); 
+  private social = inject(SocialService); // Injected
   
   private readonly DB_COLLECTION = 'visual_novels_v1';
 
@@ -20,21 +23,17 @@ export class VnService {
   readonly novels = this._novels.asReadonly();
 
   private _activeNovelId: string | null = null;
+  private _initialized = false;
 
-  constructor() {
-    this.loadNovels();
-  }
+  async initializeData() {
+    if (this._initialized) return;
 
-  private async loadNovels() {
     try {
       const storedNovels = await this.db.getAll<VisualNovel>(this.DB_COLLECTION);
-      
       const missingMocks = MOCK_VNS.filter(mock => !storedNovels.find(s => s.id === mock.id));
-      
       const allNovels = [...storedNovels, ...missingMocks];
 
       if (allNovels.length > 0) {
-        // Normalização de dados legados
         allNovels.forEach(n => {
           if (!n.credits) {
             n.credits = {
@@ -45,15 +44,12 @@ export class VnService {
             };
           }
         });
-        
-        // Sort: User created first, then mocks
         allNovels.sort((a, b) => b.createdAt - a.createdAt);
-        
         this._novels.set(allNovels);
       } else {
-        // Fallback ultimate if empty
         this._novels.set(MOCK_VNS);
       }
+      this._initialized = true;
 
     } catch (e) {
       console.error("Erro ao carregar VNs", e);
@@ -70,11 +66,12 @@ export class VnService {
 
   getNovelById(id: string): VisualNovel | undefined {
     this._activeNovelId = id;
-    return this._novels().find(n => n.id === id);
+    let n = this._novels().find(n => n.id === id);
+    if (!n) n = MOCK_VNS.find(m => m.id === id);
+    return n;
   }
 
   async saveNovel(novel: VisualNovel) {
-    // 1. Atualiza Signal (UI Instantânea)
     this._novels.update(current => {
       const index = current.findIndex(n => n.id === novel.id);
       if (index >= 0) {
@@ -84,8 +81,6 @@ export class VnService {
       }
       return [novel, ...current];
     });
-
-    // 2. Persiste no Banco de Dados (Async)
     await this.db.saveAll(this.DB_COLLECTION, this._novels());
   }
 
@@ -95,50 +90,31 @@ export class VnService {
       alert("Acesso Negado.");
       return;
     }
-
     this._novels.update(current => current.filter(n => n.id !== id));
     await this.db.saveAll(this.DB_COLLECTION, this._novels());
   }
 
   createEmptyNovel(): VisualNovel {
-    const startSceneId = `scene_${Date.now()}`;
     const user = this.auth.currentUser();
-    return {
-      id: `vn_${Date.now()}`,
-      creatorId: user?.id || 'guest',
-      title: 'Nova História',
-      description: 'Uma aventura incrível.',
-      coverUrl: this.assets.getIcon(),
-      author: user?.username || 'Autor',
-      createdAt: Date.now(),
-      startSceneId: startSceneId,
-      playCount: 0,
-      likes: 0,
-      tags: ['Nova'],
-      credits: {
-        enabled: true,
-        endingTitle: 'FIM',
-        scrollingText: `Roteiro e Direção\n${user?.username || 'Autor'}\n\nArte\nIA Generativa\n\nProduzido no\nDemoMax Studio\n\nObrigado por jogar!`,
-        backgroundImageUrl: this.assets.getIcon()
-      },
-      scenes: [
-        {
-          id: startSceneId,
-          name: 'Cena 1',
-          backgroundUrl: this.assets.getIcon(),
-          speakerName: 'Narrador',
-          dialogue: 'Tudo começou em uma tarde chuvosa...',
-          transition: 'fade',
-          characterEffect: 'none',
-          choices: []
-        }
-      ]
-    };
+    return createNewVisualNovel(
+      user?.id || 'guest',
+      user?.username || 'Autor',
+      this.assets.getIcon()
+    );
+  }
+
+  // --- LIKE LOGIC ---
+  toggleLike(id: string) {
+    this.social.toggleNovelLike(id);
+    // Update local counter visual (not persisted to DB instantly to avoid spam write)
+    const novel = this.getNovelById(id);
+    if (novel) {
+       const isLiked = this.social.isNovelLiked(id);
+       novel.likes = (novel.likes || 0) + (isLiked ? 1 : -1);
+    }
   }
 
   releaseMemory() {
-    if (this._activeNovelId) {
-      this._activeNovelId = null;
-    }
+    this._activeNovelId = null;
   }
 }

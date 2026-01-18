@@ -26,18 +26,18 @@ import { PermissionService } from '../../services/permission.service';
                  </svg>
               </div>
 
-              <h2 class="text-2xl font-bold text-white mb-2">Account Required</h2>
+              <h2 class="text-2xl font-bold text-white mb-2">Conta Necessária</h2>
               <p class="text-slate-400 text-sm mb-6 leading-relaxed">
-                 You are currently in <span class="text-pink-400 font-bold">Guest Mode</span>. 
-                 To access features like character creation, image generation, and unlimited chat, you need to sync your neural link.
+                 Você está em <span class="text-pink-400 font-bold">Modo Visitante</span>. 
+                 Para acessar recursos como criação de personagens, geração de imagens e chat ilimitado, você precisa sincronizar seu link neural.
               </p>
 
               <div class="space-y-3">
                  <button (click)="goToSignup()" class="w-full py-3 rounded-xl bg-pink-600 hover:bg-pink-500 text-white font-bold shadow-lg shadow-pink-600/20 transition-all btn-bounce">
-                    Create Free Account
+                    Criar Conta Grátis
                  </button>
                  <button (click)="goToLogin()" class="w-full py-3 rounded-xl border border-slate-600 hover:bg-slate-800 text-slate-300 hover:text-white transition-colors">
-                    Log In
+                    Fazer Login
                  </button>
               </div>
            </div>

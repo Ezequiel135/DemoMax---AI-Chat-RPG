@@ -9,7 +9,8 @@ export const nonGuestGuard: CanActivateFn = (route, state) => {
   const permissions = inject(PermissionService);
 
   if (auth.isGuest()) {
-    // Trigger the modal logic implicitly by checking a restricted action
+    // Apenas tenta performar uma ação restrita para disparar o modal do serviço
+    // Isso mantém o usuário na página atual mas abre o popup "Conta Necessária"
     permissions.canPerform('create_character'); 
     return false;
   }

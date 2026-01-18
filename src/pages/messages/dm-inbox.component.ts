@@ -69,7 +69,7 @@ import { HeaderComponent } from '../../components/header/header.component';
                       <span class="text-[10px] text-slate-400 flex-shrink-0 ml-2">{{ chat.lastMessageTime | date:'shortTime' }}</span>
                    </div>
                    <div class="flex items-center gap-1">
-                      <p class="text-sm text-slate-500 dark:text-slate-400 truncate" [class.font-bold]="chat.unreadCount > 0" [class.text-slate-900]="chat.unreadCount > 0" [class.dark:text-white]="chat.unreadCount > 0">
+                      <p class="text-sm text-slate-500 dark:text-slate-400 truncate font-medium" [class.font-bold]="chat.unreadCount > 0" [class.text-slate-900]="chat.unreadCount > 0" [class.dark:text-white]="chat.unreadCount > 0">
                          {{ chat.lastMessage }}
                       </p>
                       @if (chat.unreadCount > 0) {

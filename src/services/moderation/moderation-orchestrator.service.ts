@@ -12,13 +12,17 @@ export class ModerationOrchestratorService {
   readonly showCrisisModal = signal(false);
 
   checkMessage(text: string): { allowed: boolean, reason?: ViolationType } {
-    // UNRESTRICTED MODE: Filters are bypassed completely.
-    // All messages are allowed regardless of content.
+    const violation = this.filter.analyze(text);
+    
+    if (violation === 'CRISIS') {
+        this.triggerCrisisIntervention();
+        return { allowed: false, reason: 'CRISIS' };
+    }
+    
     return { allowed: true };
   }
 
   private triggerCrisisIntervention() {
-    // Disabled in Unrestricted Mode
     this.showCrisisModal.set(true);
   }
 

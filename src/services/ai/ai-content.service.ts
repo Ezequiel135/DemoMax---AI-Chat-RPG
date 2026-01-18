@@ -29,16 +29,39 @@ export class AiContentService {
   }
 
   async moderateAndRewrite(name: string, description: string, instruction: string): Promise<{safe: boolean, rewritten: any}> {
-    // UNRESTRICTED MODE: Bypass moderation rewrite entirely.
-    // Return the original input as "safe" to allow any character concept.
+    // Pass-through for Unrestricted Mode
     return { 
       safe: true, 
-      rewritten: { 
-        name, 
-        description, 
-        systemInstruction: instruction 
-      } 
+      rewritten: { name, description, systemInstruction: instruction } 
     };
+  }
+
+  async analyzeAndSanitize(text: string): Promise<string> {
+    if (!text || text.length < 10) return text;
+
+    const prompt = `
+      [TASK] You are a Content Moderator and Editor.
+      [INPUT TEXT]
+      "${text}"
+      
+      [INSTRUCTION]
+      1. Analyze the text for NSFW content.
+      2. If the text is Safe/PG-13, return it EXACTLY as is.
+      3. If the text is NSFW/18+, REWRITE it to be Safe/Teen-rated (PG-13).
+      
+      [OUTPUT]
+      Return ONLY the final text string. No explanations.
+    `;
+
+    try {
+      const response = await this.config.client.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: prompt
+      });
+      return response.text?.trim() || text;
+    } catch (e) {
+      return text;
+    }
   }
 
   async compactMemory(currentSummary: string, recentEvents: string): Promise<string> {

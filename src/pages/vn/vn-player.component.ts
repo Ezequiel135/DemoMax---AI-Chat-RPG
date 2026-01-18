@@ -3,19 +3,18 @@ import { Component, inject, signal, effect, computed } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { VnService } from '../../services/vn.service';
-import { VnScene, VnCredits } from '../../models/vn.model';
+import { VnScene } from '../../models/vn.model';
 import { EconomyService } from '../../services/economy.service';
 import { ToastService } from '../../services/toast.service';
 import { VisualEffectsService } from '../../services/visual-effects.service';
 import { ActivityService } from '../../services/activity.service';
+import { VnEngineLogic } from '../../logic/vn/runtime/vn-engine.logic';
 
 @Component({
   selector: 'app-vn-player',
-  standalone: true,
   imports: [CommonModule, RouterLink],
   templateUrl: './vn-player.component.html',
   styles: [`
-    /* Same styles as before */
     .text-shadow { text-shadow: 0 2px 4px rgba(0,0,0,0.5); }
     .fx-rain { background-image: url('https://www.transparenttextures.com/patterns/stardust.png'); opacity: 0.1; animation: rain 1s linear infinite; }
     .fx-snow { background-image: url('https://www.transparenttextures.com/patterns/stardust.png'); opacity: 0.2; animation: snow 5s linear infinite; }
@@ -54,81 +53,70 @@ export class VnPlayerComponent {
   fxService = inject(VisualEffectsService);
   activityService = inject(ActivityService);
 
-  novelId = '';
   novel = signal<any>(null);
-  currentSceneId = signal<string>('');
   
-  // Game State
-  gameEnded = signal(false);
+  // Usando motor de lógica real
+  engineState = signal<any>({ currentSceneId: '', gameEnded: false, isTyping: true, displayedText: '' });
+  
   rewardCoins = 0;
-  
-  // Typing Effect
-  displayedText = signal('');
-  isTyping = signal(false);
   private typeTimeout: any;
 
   currentScene = computed(() => {
     const n = this.novel();
-    // If game ended, force scene to null to trigger else block template
-    if (this.gameEnded() || !n) return null;
-    
-    return n.scenes.find((s: VnScene) => s.id === this.currentSceneId());
+    const state = this.engineState();
+    if (state.gameEnded || !n) return null;
+    return n.scenes.find((s: VnScene) => s.id === state.currentSceneId);
   });
 
-  creditsData = computed<VnCredits | null>(() => {
-    const n = this.novel();
-    if (!n) return null;
-    return n.credits || {
-       enabled: true,
-       endingTitle: 'FIM',
-       scrollingText: 'Obrigado por jogar!',
-       backgroundImageUrl: n.coverUrl
-    };
+  creditsData = computed(() => {
+    return this.novel() ? VnEngineLogic.getCredits(this.novel()) : null;
   });
 
   constructor() {
-    this.novelId = this.route.snapshot.paramMap.get('id') || '';
-    const vn = this.vnService.getNovelById(this.novelId);
-    if (vn) {
-      this.novel.set(vn);
-      this.currentSceneId.set(vn.startSceneId);
-    } else {
-      this.exit();
-    }
+    const novelId = this.route.snapshot.paramMap.get('id') || '';
+    
+    // Assegura que dados estejam carregados
+    this.vnService.initializeData().then(() => {
+        const vn = this.vnService.getNovelById(novelId);
+        if (vn) {
+          this.novel.set(vn);
+          this.engineState.set(VnEngineLogic.initialize(vn));
+          
+          // Increment play count
+          vn.playCount = (vn.playCount || 0) + 1;
+          this.vnService.saveNovel(vn);
+        } else {
+          this.exit();
+        }
+    });
 
     effect(() => {
-      // Check if scene is valid or if it's the end
-      if (this.gameEnded()) return;
+      const state = this.engineState();
+      if (state.gameEnded) {
+          if (this.rewardCoins === 0) this.triggerEndGame();
+          return;
+      }
 
-      const n = this.novel();
-      if (!n) return;
-      
-      const scene = n.scenes.find((s: VnScene) => s.id === this.currentSceneId());
-
+      const scene = this.currentScene();
       if (scene) {
+        // Reinicia datilografia se a cena mudou
         this.startTypewriter(scene.dialogue);
-        this.activityService.trackNovel(n, scene.name);
-      } else {
-        // SCENE NOT FOUND => END GAME
-        // This handles both explicit null/empty nextSceneId AND invalid IDs
-        this.triggerEndGame();
+        this.activityService.trackNovel(this.novel(), scene.name);
+      } else if (this.novel()) {
+        // Fallback if scene ID invalid
+        this.engineState.update(s => ({ ...s, gameEnded: true }));
       }
     }, { allowSignalWrites: true });
   }
 
   triggerEndGame() {
-    if (this.gameEnded()) return; // Prevent double trigger
-    
-    this.gameEnded.set(true);
-    
-    // No coins for VNs
-    this.rewardCoins = 0;
-    
+    this.rewardCoins = 100;
     this.economy.addXp(100);
-    
+    this.economy.earnCoins(20, 'VN Clear');
     this.fxService.triggerConfetti(window.innerWidth / 2, window.innerHeight / 2, 100);
   }
 
+  // Visual Helpers
   getTransitionClass(transition: string | undefined): string {
     switch (transition) {
       case 'fade': return 'animate-fade-in';
@@ -140,11 +128,9 @@ export class VnPlayerComponent {
   }
 
   getWeatherClass(effect: string | undefined): string {
-    switch (effect) {
-      case 'rain': return 'fx-rain';
-      case 'snow': return 'fx-snow';
-      default: return '';
-    }
+    if(effect === 'rain') return 'fx-rain';
+    if(effect === 'snow') return 'fx-snow';
+    return '';
   }
 
   getCharacterAnimationClass(effect: string | undefined): string {
@@ -158,62 +144,70 @@ export class VnPlayerComponent {
     }
   }
 
+  // Typewriter Logic (UI)
   startTypewriter(text: string) {
     if (this.typeTimeout) clearTimeout(this.typeTimeout);
-    this.displayedText.set('');
-    this.isTyping.set(true);
+    
+    this.engineState.update(s => ({ ...s, displayedText: '', isTyping: true }));
+    
     let i = 0;
-    const speed = 30; 
+    const speed = 25; 
+    
     const type = () => {
+      const current = this.engineState().displayedText;
       if (i < text.length) {
-        this.displayedText.update(s => s + text.charAt(i));
+        this.engineState.update(s => ({ ...s, displayedText: current + text.charAt(i) }));
         i++;
         this.typeTimeout = setTimeout(type, speed);
       } else {
-        this.isTyping.set(false);
+        this.engineState.update(s => ({ ...s, isTyping: false }));
       }
     };
     type();
   }
 
   handleDialogueClick() {
-    if (this.isTyping()) {
+    const state = this.engineState();
+    
+    if (state.isTyping) {
       this.completeTyping();
       return;
     }
+    
     const scene = this.currentScene();
     if (!scene) return;
+    
+    // Se tiver escolhas, o clique na caixa de diálogo não faz nada (usuário deve clicar no botão)
     if (scene.choices && scene.choices.length > 0) return; 
     
-    // Check flow
-    if (scene.nextSceneId) {
-        this.goToScene(scene.nextSceneId);
-    } else {
-        // No next scene defined => End of Novel
-        // We set to a special marker or just trigger end game logic by setting invalid ID
-        this.goToScene('__END__'); 
-    }
+    // Se for linear, avança
+    const nextId = VnEngineLogic.getNextSceneId(scene);
+    this.goToScene(nextId);
   }
 
   completeTyping() {
-    if (this.isTyping()) {
-      clearTimeout(this.typeTimeout);
-      const scene = this.currentScene();
-      if (scene) this.displayedText.set(scene.dialogue);
-      this.isTyping.set(false);
+    clearTimeout(this.typeTimeout);
+    const scene = this.currentScene();
+    if (scene) {
+        this.engineState.update(s => ({ ...s, displayedText: scene.dialogue, isTyping: false }));
     }
   }
 
-  goToScene(id: string) {
-    clearTimeout(this.typeTimeout); 
-    this.currentSceneId.set(id); 
+  goToScene(id: string | null) {
+    if (!id) return;
+    
+    if (id === '__END__') {
+       this.engineState.update(s => ({ ...s, gameEnded: true }));
+    } else {
+       this.engineState.update(s => ({ ...s, currentSceneId: id, displayedText: '', isTyping: true }));
+    }
   }
 
   restart() {
     const vn = this.novel();
     if (vn) {
-      this.gameEnded.set(false);
-      this.currentSceneId.set(vn.startSceneId);
+      this.rewardCoins = 0;
+      this.engineState.set(VnEngineLogic.initialize(vn));
     }
   }
 

@@ -1,7 +1,9 @@
 
 import { Injectable, inject } from '@angular/core';
 import { AiConfigService } from './ai-config.service';
-import { Chat, HarmCategory, HarmBlockThreshold } from '@google/genai';
+import { Chat, Content } from '@google/genai';
+import { ChatMode } from '../chat-settings.service';
+import { getChatConfig } from '../../logic/ai/model-config.logic';
 
 @Injectable({
   providedIn: 'root'
@@ -9,23 +11,13 @@ import { Chat, HarmCategory, HarmBlockThreshold } from '@google/genai';
 export class AiChatService {
   private config = inject(AiConfigService);
 
-  async createSession(systemInstruction: string): Promise<Chat> {
+  async createSession(systemInstruction: string, mode: ChatMode = 'flash', history: Content[] = []): Promise<Chat> {
+    const config = getChatConfig(mode, systemInstruction);
+    
     return this.config.client.chats.create({
       model: 'gemini-2.5-flash',
-      config: {
-        systemInstruction: systemInstruction,
-        temperature: 1.0, 
-        topK: 64,
-        topP: 0.95,
-        safetySettings: [
-          // We handle strict moderation locally (Regex) + Content Rewrite.
-          // We lower API thresholds to prevent false positives on "roleplay combat".
-          { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-          { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.BLOCK_NONE },
-        ]
-      }
+      config: config,
+      history: history // Injeção crítica do histórico
     });
   }
 
@@ -37,7 +29,8 @@ export class AiChatService {
       return result.text || "...";
     } catch (error) {
       console.error("AI Chat Error:", error);
-      return "Error: Neural link unstable. The system prevented this response.";
+      // Fallback gracioso para não quebrar a UI
+      return "*Connection unstable...* (The system resets slightly). What were we saying?";
     }
   }
 }

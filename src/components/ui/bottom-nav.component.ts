@@ -79,20 +79,23 @@ import { filter, map } from 'rxjs/operators';
 export class BottomNavComponent {
   private router = inject(Router);
 
-  // Hide on specific pages where we want immersive view
+  // Ocultar barra em telas imersivas (chat, jogos, leitura, auth)
   isVisible = toSignal(
     this.router.events.pipe(
       filter(e => e instanceof NavigationEnd),
       map((e: any) => {
         const url = e.urlAfterRedirects;
         return !url.includes('/chat/') && 
+               !url.includes('/direct/') && 
                !url.includes('/splash') && 
                !url.includes('/auth') && 
                !url.includes('/login') && 
                !url.includes('/signup') && 
                !url.includes('/onboarding') &&
                !url.includes('/vn/play') &&
-               !url.includes('/vn/edit'); // Chat/VN UI is immersive
+               !url.includes('/vn/edit') &&
+               !url.includes('/novel/edit') &&
+               !url.includes('/novel/read');
       })
     ),
     { initialValue: false }

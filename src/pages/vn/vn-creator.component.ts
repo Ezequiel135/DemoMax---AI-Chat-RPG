@@ -7,6 +7,8 @@ import { VnService } from '../../services/vn.service';
 import { VisualNovel, VnScene } from '../../models/vn.model';
 import { HeaderComponent } from '../../components/header/header.component';
 import { ToastService } from '../../services/toast.service';
+import { ImageGenerationService } from '../../services/ai/image-generation.service';
+import { EconomyService } from '../../services/economy.service';
 import { VnSceneListComponent } from '../../components/vn-creator/scene-list.component';
 import { VnStagePreviewComponent } from '../../components/vn-creator/stage-preview.component';
 import { VnPropertyEditorComponent } from '../../components/vn-creator/property-editor.component';
@@ -26,10 +28,14 @@ export class VnCreatorComponent {
   router = inject(Router);
   vnService = inject(VnService);
   toast = inject(ToastService);
+  imageGen = inject(ImageGenerationService);
+  economy = inject(EconomyService);
 
   novel = signal<VisualNovel | undefined>(undefined);
   selectedSceneId = signal<string | null>(null);
   
+  isGeneratingCover = signal(false);
+
   // Computed helpers
   scenes = computed(() => this.novel()?.scenes || []);
   activeScene = computed(() => this.scenes().find(s => s.id === this.selectedSceneId()));
@@ -37,25 +43,60 @@ export class VnCreatorComponent {
   constructor() {
     const id = this.route.snapshot.paramMap.get('id');
     if (id) {
-      const vn = this.vnService.getNovelById(id);
-      if (vn && this.vnService.canEdit(vn)) {
-        // Deep copy
-        this.novel.set(JSON.parse(JSON.stringify(vn)));
-        this.selectedSceneId.set(vn.startSceneId);
-      } else {
-        this.router.navigate(['/vn']);
-      }
+      // Must use a promise/async friendly approach or ensure service init
+      this.vnService.initializeData().then(() => {
+         const vn = this.vnService.getNovelById(id);
+         if (vn && this.vnService.canEdit(vn)) {
+           // Deep copy to allow editing without affecting signal prematurely
+           this.novel.set(JSON.parse(JSON.stringify(vn)));
+           this.selectedSceneId.set(vn.startSceneId);
+         } else {
+           this.router.navigate(['/vn']);
+         }
+      });
     }
   }
 
-  save() {
+  async save() {
     if (this.novel()) {
-      this.vnService.saveNovel(this.novel()!);
-      this.toast.show("Salvo com sucesso!", "success");
+      await this.vnService.saveNovel(this.novel()!);
+      this.toast.show("Visual Novel salva no banco de dados!", "success");
     }
   }
 
-  // --- Actions delegates ---
+  async generateAiCover() {
+    const n = this.novel();
+    if (!n) return;
+    
+    if (!n.title) {
+        this.toast.show("Defina um título primeiro.", "error");
+        return;
+    }
+
+    if (!this.economy.spendCoins(50)) {
+        this.toast.show("Moedas insuficientes (50 SC).", "error");
+        return;
+    }
+
+    this.isGeneratingCover.set(true);
+    this.toast.show("Gerando capa...", "info");
+
+    try {
+        const url = await this.imageGen.generateVisualNovelCover(n.title, n.description || "Anime visual novel cover", 'anime_moe');
+        if (url) {
+            this.novel.update(curr => curr ? { ...curr, coverUrl: url } : undefined);
+            this.toast.show("Capa gerada!", "success");
+        } else {
+            this.economy.earnCoins(50);
+            this.toast.show("Erro na geração.", "error");
+        }
+    } catch(e) {
+        this.economy.earnCoins(50);
+        this.toast.show("Erro.", "error");
+    } finally {
+        this.isGeneratingCover.set(false);
+    }
+  }
 
   addScene() {
     const n = this.novel();
@@ -134,7 +175,6 @@ export class VnCreatorComponent {
   }
 
   triggerUpdate() {
-    // Helper to trigger signal update if needed manually, though object mutation usually caught if reference changes
     this.novel.update(n => n ? ({...n}) : undefined);
   }
 }

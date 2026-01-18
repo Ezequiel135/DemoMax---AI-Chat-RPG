@@ -12,8 +12,8 @@
          [style.width.%]="(step() - 1) * 20"></div>
 
     @for (s of [1, 2, 3, 4, 5, 6]; track s) {
-      <div class="flex flex-col items-center gap-2 cursor-pointer transition-transform hover:scale-110" 
-           (click)="s < step() ? step.set(s) : null">
+      <div class="flex flex-col items-center gap-2 transition-transform" 
+           [class.scale-110]="step() === s">
         <div class="w-10 h-10 rounded-full flex items-center justify-center font-bold text-sm border-4 transition-all duration-300 bg-slate-900 shadow-xl"
              [class.border-pink-500]="step() >= s"
              [class.text-white]="step() >= s"
@@ -55,7 +55,7 @@
                <p class="text-slate-400">Defina a identidade básica e o nível de conteúdo.</p>
              </div>
              
-             <!-- Cute Toggle for NSFW -->
+             <!-- NSFW Toggle -->
              <label class="cursor-pointer group">
                <div class="flex items-center gap-3 bg-slate-950/50 p-2 pr-4 rounded-full border border-slate-700 group-hover:border-slate-500 transition-colors">
                   <div class="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
@@ -75,40 +75,76 @@
 
           <div class="grid md:grid-cols-2 gap-6">
             <div class="space-y-2">
-              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Nome Completo</label>
-              <input [(ngModel)]="draft.name" placeholder="Ex: Alice Wonderland" class="cute-input">
+              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Nome Completo <span class="text-red-500">*</span></label>
+              <input [(ngModel)]="draft.name" placeholder="Ex: Alice Wonderland" class="cute-input" required>
             </div>
             <div class="space-y-2">
-              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Título / Tagline</label>
-              <input [(ngModel)]="draft.tagline" placeholder="Ex: A Aventureira Perdida" class="cute-input">
+              <label class="text-xs font-bold text-slate-400 uppercase ml-2">Título / Tagline <span class="text-red-500">*</span></label>
+              <input [(ngModel)]="draft.tagline" placeholder="Ex: A Aventureira Perdida" class="cute-input" required>
             </div>
           </div>
 
+          <!-- GENDER SELECTOR (NEW) -->
           <div class="space-y-2">
-            <label class="text-xs font-bold text-slate-400 uppercase ml-2">Descrição Curta</label>
-            <textarea [(ngModel)]="draft.description" rows="3" placeholder="Um resumo rápido que aparece no card do personagem..." class="cute-input resize-none"></textarea>
+             <label class="text-xs font-bold text-slate-400 uppercase ml-2">Gênero <span class="text-red-500">*</span></label>
+             <div class="flex gap-3">
+                <button (click)="setGender('Female')" 
+                        class="flex-1 py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2"
+                        [class.border-pink-500]="draft.gender === 'Female'"
+                        [class.bg-pink-500_20]="draft.gender === 'Female'"
+                        [class.text-pink-400]="draft.gender === 'Female'"
+                        [class.border-slate-700]="draft.gender !== 'Female'"
+                        [class.text-slate-500]="draft.gender !== 'Female'"
+                        [class.bg-slate-800]="draft.gender !== 'Female'">
+                   ♀ Feminino
+                </button>
+                <button (click)="setGender('Male')" 
+                        class="flex-1 py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2"
+                        [class.border-blue-500]="draft.gender === 'Male'"
+                        [class.bg-blue-500_20]="draft.gender === 'Male'"
+                        [class.text-blue-400]="draft.gender === 'Male'"
+                        [class.border-slate-700]="draft.gender !== 'Male'"
+                        [class.text-slate-500]="draft.gender !== 'Male'"
+                        [class.bg-slate-800]="draft.gender !== 'Male'">
+                   ♂ Masculino
+                </button>
+                <button (click)="setGender('Other')" 
+                        class="flex-1 py-3 rounded-xl border-2 font-bold transition-all flex items-center justify-center gap-2"
+                        [class.border-purple-500]="draft.gender === 'Other'"
+                        [class.bg-purple-500_20]="draft.gender === 'Other'"
+                        [class.text-purple-400]="draft.gender === 'Other'"
+                        [class.border-slate-700]="draft.gender !== 'Other'"
+                        [class.text-slate-500]="draft.gender !== 'Other'"
+                        [class.bg-slate-800]="draft.gender !== 'Other'">
+                   ⚧ Outro
+                </button>
+             </div>
+          </div>
+
+          <div class="space-y-2">
+             <label class="text-xs font-bold text-slate-400 uppercase ml-2">Descrição Curta <span class="text-red-500">*</span></label>
+             <textarea [(ngModel)]="draft.description" rows="3" placeholder="Um resumo rápido que aparece no card do personagem..." class="cute-input resize-none" required></textarea>
           </div>
 
           <!-- Age Confirmation Checkbox -->
           <div class="flex items-center gap-3 p-4 rounded-2xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors cursor-pointer" (click)="ageConfirmed = !ageConfirmed">
-             <div class="w-6 h-6 rounded-lg border-2 border-slate-500 flex items-center justify-center" [class.bg-pink-500]="ageConfirmed" [class.border-pink-500]="ageConfirmed">
+             <div class="w-6 h-6 rounded-lg border-2 border-slate-500 flex items-center justify-center transition-colors" [class.bg-pink-500]="ageConfirmed" [class.border-pink-500]="ageConfirmed">
                 <svg *ngIf="ageConfirmed" xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-white" viewBox="0 0 20 20" fill="currentColor"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" /></svg>
              </div>
-             <p class="text-sm text-slate-300 select-none">Eu confirmo que este personagem tem 18+ anos e segue as diretrizes.</p>
+             <p class="text-sm text-slate-300 select-none">Eu confirmo que este personagem tem 18+ anos e segue as diretrizes. <span class="text-red-500">*</span></p>
           </div>
         </div>
       }
 
-      <!-- STEP 2: VISUAL (UPDATED WITH STYLES) -->
+      <!-- STEP 2: VISUAL -->
       @if (step() === 2) {
         <div class="animate-fade-in h-full flex flex-col">
           <div class="mb-6">
              <h2 class="text-3xl font-bold text-white mb-1">Aparência Visual</h2>
-             <p class="text-slate-400">Escolha o estilo artístico e descreva.</p>
+             <p class="text-slate-400">Escolha o estilo artístico e descreva. É obrigatório gerar ou enviar uma imagem.</p>
           </div>
 
           <div class="flex flex-col md:flex-row gap-8 items-start h-full">
-             
              <!-- Preview Box -->
              <div class="w-full md:w-72 flex-shrink-0">
                 <div class="aspect-[3/4] rounded-[2rem] overflow-hidden bg-slate-950 border-4 border-slate-800 relative group shadow-2xl">
@@ -121,8 +157,7 @@
 
              <!-- Generator -->
              <div class="flex-1 w-full space-y-6">
-                
-                <!-- Style Selector (Grid like screenshots) -->
+                <!-- Style Selector -->
                 <div>
                    <label class="text-xs font-bold text-slate-400 uppercase ml-1 mb-2 block">Estilo da Imagem</label>
                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 gap-3">
@@ -132,7 +167,6 @@
                               [class.border-pink-500]="selectedStyle() === style.id"
                               [class.border-transparent]="selectedStyle() !== style.id"
                               [class.scale-105]="selectedStyle() === style.id">
-                            <!-- In a real app these would be style previews, using picsum for now -->
                             <img [src]="style.img" class="w-full h-full object-cover opacity-70 group-hover:opacity-100 transition-opacity">
                             <div class="absolute inset-0 bg-black/40 group-hover:bg-transparent transition-colors"></div>
                             <div class="absolute bottom-0 left-0 right-0 p-1 text-[9px] font-bold text-white text-center bg-black/60 backdrop-blur-sm">
@@ -150,7 +184,6 @@
                    </div>
                    <div class="space-y-3">
                       <textarea [(ngModel)]="imagePrompt" rows="2" placeholder="Ex: Mulher elfa com cabelos prateados, olhos violeta, vestindo armadura dourada..." class="cute-input resize-none"></textarea>
-                      
                       <button (click)="generateAvatar()" 
                               [disabled]="isGenerating() || !imagePrompt"
                               class="w-full py-3 bg-pink-600 rounded-xl flex items-center justify-center text-white hover:bg-pink-500 shadow-lg disabled:opacity-50 transition-all font-bold">
@@ -168,32 +201,34 @@
                       <input type="file" accept="image/*" class="hidden" (change)="onFileSelected($event)">
                    </label>
                 </div>
-
              </div>
           </div>
         </div>
       }
 
-      <!-- STEP 3: INTRO (First Message) -->
+      <!-- STEP 3: INTRO (MANDATORY) -->
       @if (step() === 3) {
         <div class="animate-fade-in space-y-6 h-full flex flex-col">
           <div>
-             <h2 class="text-3xl font-bold text-white mb-1">Primeira Mensagem</h2>
-             <p class="text-slate-400">O quebra-gelo. Como o personagem inicia a conversa?</p>
+             <h2 class="text-3xl font-bold text-white mb-1">Primeira Mensagem <span class="text-red-500">*</span></h2>
+             <p class="text-slate-400">O quebra-gelo. Obrigatório para iniciar a conversa. Use *asteriscos* para ações e "aspas" para fala.</p>
           </div>
           
           <div class="flex-1 relative group">
              <!-- Chat Bubble Aesthetic -->
              <div class="absolute -top-3 left-6 px-3 py-1 bg-pink-600 text-white text-[10px] font-bold rounded-full uppercase tracking-widest z-10 shadow-lg">
-                Mensagem Inicial
+                Mensagem Inicial (Obrigatório)
              </div>
              <textarea [(ngModel)]="firstMessage" 
+                       required
                        class="w-full h-full min-h-[300px] bg-slate-800/50 border-2 border-slate-700 rounded-[2rem] p-8 text-lg text-slate-200 focus:outline-none focus:border-pink-500/50 focus:bg-slate-800 transition-all resize-none shadow-inner leading-relaxed"
                        placeholder="*Ela olha para você e sorri timidamente.* 'Olá... não esperava te ver por aqui.'"></textarea>
              
-             <div class="absolute bottom-6 right-6 text-slate-500 text-xs">
-                Dica: Use *asteriscos* para ações e "aspas" para fala.
-             </div>
+             @if (!firstMessage) {
+               <div class="text-red-500 text-xs font-bold mt-2 ml-4">
+                  ⚠️ Este campo não pode ficar vazio.
+               </div>
+             }
           </div>
         </div>
       }
@@ -202,12 +237,13 @@
       @if (step() === 4) {
         <div class="animate-fade-in space-y-6 h-full flex flex-col">
           <div>
-             <h2 class="text-3xl font-bold text-white mb-1">Personalidade & Lore</h2>
+             <h2 class="text-3xl font-bold text-white mb-1">Personalidade & Lore <span class="text-red-500">*</span></h2>
              <p class="text-slate-400">O cérebro do personagem. Defina traços, segredos e história.</p>
           </div>
           
           <div class="flex-1 relative">
              <textarea [(ngModel)]="draft.systemInstruction" 
+                       required
                        class="w-full h-full min-h-[350px] bg-slate-800/50 border-2 border-slate-700 rounded-[2rem] p-8 text-base text-slate-300 focus:outline-none focus:border-purple-500/50 focus:bg-slate-800 transition-all resize-none shadow-inner font-mono leading-relaxed custom-scroll"
                        placeholder="[Nome] Alice
 [Personalidade] Curiosa, tímida, inteligente
@@ -217,7 +253,7 @@
         </div>
       }
 
-      <!-- STEP 5: TRAINING (Chat Style) -->
+      <!-- STEP 5: TRAINING -->
       @if (step() === 5) {
         <div class="animate-fade-in space-y-6 h-full flex flex-col">
           <div class="flex justify-between items-end">
@@ -233,21 +269,15 @@
           <div class="flex-1 overflow-y-auto custom-scroll pr-2 space-y-6">
              @for (pair of trainingPairs; track $index) {
                 <div class="relative group">
-                   <!-- Delete Button -->
                    <button (click)="removeTrainingPair($index)" class="absolute -right-2 -top-2 w-6 h-6 bg-red-500 text-white rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-lg z-10">✕</button>
                    
-                   <!-- Chat Container -->
                    <div class="bg-slate-950/30 p-4 rounded-[2rem] border border-slate-800 space-y-4">
-                      
-                      <!-- User Bubble (Right) -->
                       <div class="flex justify-end">
                          <div class="max-w-[85%]">
                             <label class="text-[10px] text-slate-500 font-bold uppercase block text-right mb-1 mr-2">Usuário diz</label>
                             <input [(ngModel)]="pair.q" class="w-full bg-slate-800 text-white px-4 py-3 rounded-2xl rounded-tr-sm border border-slate-700 focus:border-pink-500 outline-none text-right" placeholder="Oi, tudo bem?">
                          </div>
                       </div>
-
-                      <!-- Char Bubble (Left) -->
                       <div class="flex justify-start">
                          <div class="max-w-[85%] flex gap-3">
                             <img [src]="draft.avatarUrl" class="w-10 h-10 rounded-full object-cover border border-slate-600 self-end mb-1">
@@ -257,7 +287,6 @@
                             </div>
                          </div>
                       </div>
-
                    </div>
                 </div>
              }
@@ -275,7 +304,7 @@
 
            <div class="grid md:grid-cols-2 gap-6">
               
-              <!-- Model Card -->
+              <!-- Left Column: Model -->
               <div class="bg-slate-800/30 p-6 rounded-[2rem] border border-white/5">
                  <h3 class="font-bold text-white mb-4 flex items-center gap-2">🧠 Modelo de IA</h3>
                  <div class="space-y-3">
@@ -323,17 +352,24 @@
                  </div>
               </div>
 
-              <!-- Extra Configs -->
+              <!-- Right Column: Affinity & Extras -->
               <div class="space-y-6">
-                 <!-- Voice -->
+                 
+                 <!-- Initial Affinity Slider -->
                  <div class="bg-slate-800/30 p-6 rounded-[2rem] border border-white/5">
-                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">🔊 Voz TTS</h3>
-                    <select [(ngModel)]="selectedVoice" class="cute-input w-full appearance-none cursor-pointer">
-                      <option value="Soft">Feminina Suave</option>
-                      <option value="Deep">Masculina Grave</option>
-                      <option value="Robot">Robótica</option>
-                      <option value="Narrator">Narrador</option>
-                    </select>
+                    <h3 class="font-bold text-white mb-4 flex items-center gap-2">
+                       <span>❤️</span> Relacionamento Inicial
+                    </h3>
+                    <div class="space-y-2">
+                       <input type="range" min="-100" max="100" [(ngModel)]="draft.initialAffinity" class="w-full accent-pink-500 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer">
+                       <div class="flex justify-between items-center text-xs font-bold mt-2">
+                          <span class="text-slate-400">Pontos: {{ draft.initialAffinity }}</span>
+                          <span class="text-white px-2 py-1 bg-white/10 rounded">{{ getAffinityLabel(draft.initialAffinity || 0) }}</span>
+                       </div>
+                    </div>
+                    <p class="text-[10px] text-slate-500 mt-2">
+                       Defina se o personagem começa como amigo, inimigo ou desconhecido.
+                    </p>
                  </div>
 
                  <!-- Donation -->
@@ -349,8 +385,8 @@
 
     </div>
 
-    <!-- ACTION BAR (Bottom) -->
-    <div class="p-6 border-t border-white/5 flex justify-between items-center bg-slate-950/30 backdrop-blur-sm">
+    <!-- ACTION BAR -->
+    <div class="p-6 border-t border-white/5 flex justify-between items-center bg-slate-950/30 backdrop-blur-sm sticky bottom-0 z-20">
        <button (click)="prevStep()" 
                [disabled]="step() === 1"
                class="px-6 py-3 rounded-xl text-slate-400 font-bold hover:text-white hover:bg-white/5 transition-colors disabled:opacity-0">
@@ -359,8 +395,8 @@
 
        @if (step() < 6) {
           <button (click)="nextStep()" 
-                  [disabled]="step() === 1 && !ageConfirmed"
-                  class="px-8 py-3 rounded-xl bg-pink-600 text-white font-bold shadow-lg shadow-pink-600/20 hover:bg-pink-500 hover:scale-105 transition-all disabled:opacity-50 disabled:scale-100">
+                  [disabled]="!isStepValid()"
+                  class="px-8 py-3 rounded-xl bg-pink-600 text-white font-bold shadow-lg shadow-pink-600/20 hover:bg-pink-500 hover:scale-105 transition-all disabled:opacity-30 disabled:grayscale disabled:cursor-not-allowed">
              Continuar →
           </button>
        } @else {

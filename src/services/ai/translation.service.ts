@@ -11,9 +11,6 @@ export class TranslationService {
   async translateToEnglish(text: string): Promise<string> {
     if (!text) return '';
     
-    // Quick heuristic: if it seems to be short english, return it. 
-    // But for safety, we ask Gemini to ensure it's English description.
-    
     const prompt = `
       [TASK] Translate the following text to English to be used as an image generation prompt.
       [INPUT] "${text}"
@@ -28,7 +25,7 @@ export class TranslationService {
       return response.text?.trim() || text;
     } catch (e) {
       console.error("Translation failed", e);
-      return text; // Fallback to original
+      return text;
     }
   }
 }

@@ -44,14 +44,18 @@
           <!-- Stats (Direita) -->
           <div class="flex-1 flex justify-around text-center ml-4">
              <div class="flex flex-col">
-                <span class="font-bold text-lg text-white">{{ myCharacters().length }}</span>
+                <span class="font-bold text-lg text-white">{{ totalPostsCount() }}</span>
                 <span class="text-xs text-slate-400">Posts</span>
              </div>
-             <div class="flex flex-col">
+             
+             <!-- Followers (Clickable) -->
+             <div (click)="openUserList('followers')" class="flex flex-col cursor-pointer hover:opacity-80 active:scale-95 transition-all">
                 <span class="font-bold text-lg text-white">{{ followersCount() }}</span>
                 <span class="text-xs text-slate-400">Seguidores</span>
              </div>
-             <div class="flex flex-col">
+             
+             <!-- Following (Clickable) -->
+             <div (click)="openUserList('following')" class="flex flex-col cursor-pointer hover:opacity-80 active:scale-95 transition-all">
                 <span class="font-bold text-lg text-white">{{ followingCount() }}</span>
                 <span class="text-xs text-slate-400">Seguindo</span>
              </div>
@@ -102,7 +106,7 @@
     <!-- 3. ABAS DE CONTEÚDO -->
     <div class="flex border-b border-slate-800 mt-6 sticky top-[52px] bg-[#0F0E17] z-20">
        <button (click)="activeTab.set('creations')" class="flex-1 pb-3 relative" [class.text-white]="activeTab() === 'creations'" [class.text-slate-500]="activeTab() !== 'creations'">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 mx-auto" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zM14 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zM14 16a2 2 0 012-2h2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z" /></svg>
           <div *ngIf="activeTab() === 'creations'" class="absolute bottom-0 left-0 right-0 h-0.5 bg-white mx-4 rounded-full"></div>
        </button>
        <button (click)="activeTab.set('favorites')" class="flex-1 pb-3 relative" [class.text-white]="activeTab() === 'favorites'" [class.text-slate-500]="activeTab() !== 'favorites'">
@@ -114,37 +118,135 @@
     <!-- 4. GRADE DE CONTEÚDO -->
     <div class="min-h-[300px]">
        
-       <!-- Grid de Personagens -->
+       <!-- ABA CRIAÇÕES -->
        @if (activeTab() === 'creations') {
-          <div class="grid grid-cols-3 gap-0.5">
-             <!-- Card Criar Novo (Primeiro slot) -->
-             <div (click)="createNew()" class="aspect-[3/4] bg-slate-900 flex flex-col items-center justify-center cursor-pointer border-r border-b border-black/50 hover:bg-slate-800 transition-colors">
-                <div class="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center text-white/50 mb-1">+</div>
-                <span class="text-[10px] text-white/50 font-bold uppercase">Novo</span>
+          <div class="space-y-6 pb-6 pt-2">
+             
+             <!-- 4.1 Personagens -->
+             <div>
+                <div class="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-1">
+                   <span>Personagens</span>
+                   <div class="h-px bg-slate-800 flex-1"></div>
+                </div>
+                <div class="grid grid-cols-3 gap-0.5">
+                   <!-- Card Criar Novo -->
+                   <div (click)="createNew()" class="aspect-[3/4] bg-slate-900 flex flex-col items-center justify-center cursor-pointer border-r border-b border-black/50 hover:bg-slate-800 transition-colors">
+                      <div class="w-8 h-8 rounded-full border-2 border-white/20 flex items-center justify-center text-white/50 mb-1">+</div>
+                      <span class="text-[10px] text-white/50 font-bold uppercase">Novo</span>
+                   </div>
+
+                   @for (char of myCharacters(); track char.id) {
+                      <div class="relative group aspect-[3/4] cursor-pointer overflow-hidden border-r border-b border-black/50">
+                         <app-character-card [character]="char"></app-character-card>
+                      </div>
+                   }
+                </div>
              </div>
 
-             <!-- Personagens com Rank -->
-             @for (char of myCharacters(); track char.id; let idx = $index) {
-                <div class="relative group aspect-[3/4] cursor-pointer overflow-hidden border-r border-b border-black/50">
-                   <app-character-card [character]="char" [rank]="idx + 1"></app-character-card>
+             <!-- 4.2 Novels -->
+             @if (myNovels().length > 0) {
+                <div class="px-3">
+                   <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Visual Novels</div>
+                   <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      @for (vn of myNovels(); track vn.id) {
+                         <a [routerLink]="['/vn/play', vn.id]" class="relative group aspect-[3/4] bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                            <img [src]="vn.coverUrl" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                               <div class="text-white text-xs font-bold truncate">{{ vn.title }}</div>
+                            </div>
+                         </a>
+                      }
+                   </div>
+                </div>
+             }
+
+             <!-- 4.3 Web Novels -->
+             @if (myWebNovels().length > 0) {
+                <div class="px-3">
+                   <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Web Novels</div>
+                   <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      @for (wn of myWebNovels(); track wn.id) {
+                         <a [routerLink]="['/novel/read', wn.id]" class="relative group aspect-[2/3] bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                            <img [src]="wn.coverUrl" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                               <div class="text-white text-xs font-bold truncate">{{ wn.title }}</div>
+                            </div>
+                         </a>
+                      }
+                   </div>
+                </div>
+             }
+
+             @if (!hasContent()) {
+                <div class="py-12 text-center">
+                   <p class="text-slate-500 text-sm">Crie histórias para preencher seu perfil.</p>
                 </div>
              }
           </div>
-
-          @if (myCharacters().length === 0) {
-             <div class="py-20 text-center">
-                <div class="text-4xl mb-2">📸</div>
-                <h3 class="text-white font-bold">Sem publicações</h3>
-                <p class="text-slate-500 text-sm">Crie seu primeiro personagem!</p>
-             </div>
-          }
        } 
        
-       <!-- Grid Favoritos (Placeholder) -->
+       <!-- ABA FAVORITOS -->
        @else {
-          <div class="py-20 text-center">
-             <div class="text-4xl mb-2 text-slate-700">🔒</div>
-             <p class="text-slate-500 text-sm">Favoritos privados.</p>
+          <div class="space-y-6 pb-6 pt-2">
+             
+             <!-- Favorite Chars -->
+             @if (favCharacters().length > 0) {
+                <div>
+                   <div class="px-4 py-2 text-xs font-bold text-slate-500 uppercase tracking-widest flex items-center gap-2 mb-1">
+                      <span>Personagens Salvos</span>
+                      <div class="h-px bg-slate-800 flex-1"></div>
+                   </div>
+                   <div class="grid grid-cols-3 gap-0.5">
+                      @for (char of favCharacters(); track char.id) {
+                         <div class="relative group aspect-[3/4] cursor-pointer overflow-hidden border-r border-b border-black/50">
+                            <app-character-card [character]="char"></app-character-card>
+                         </div>
+                      }
+                   </div>
+                </div>
+             }
+
+             <!-- Favorite VNs -->
+             @if (favNovels().length > 0) {
+                <div class="px-3">
+                   <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Visual Novels</div>
+                   <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      @for (vn of favNovels(); track vn.id) {
+                         <a [routerLink]="['/vn/play', vn.id]" class="relative group aspect-[3/4] bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                            <img [src]="vn.coverUrl" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                               <div class="text-white text-xs font-bold truncate">{{ vn.title }}</div>
+                            </div>
+                         </a>
+                      }
+                   </div>
+                </div>
+             }
+
+             <!-- Favorite Books -->
+             @if (favWebNovels().length > 0) {
+                <div class="px-3">
+                   <div class="text-xs font-bold text-slate-500 uppercase tracking-widest mb-2">Livros Salvos</div>
+                   <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                      @for (wn of favWebNovels(); track wn.id) {
+                         <a [routerLink]="['/novel/read', wn.id]" class="relative group aspect-[2/3] bg-slate-900 rounded-xl overflow-hidden shadow-lg border border-white/5">
+                            <img [src]="wn.coverUrl" class="w-full h-full object-cover">
+                            <div class="absolute bottom-0 left-0 right-0 p-2 bg-gradient-to-t from-black/90 to-transparent">
+                               <div class="text-white text-xs font-bold truncate">{{ wn.title }}</div>
+                            </div>
+                         </a>
+                      }
+                   </div>
+                </div>
+             }
+
+             @if (!hasFavorites()) {
+                <div class="py-20 text-center">
+                   <div class="text-4xl mb-2 text-slate-800">⭐</div>
+                   <p class="text-slate-500 text-sm">Você ainda não favoritou nada.</p>
+                   <p class="text-slate-600 text-xs">Explore o feed para salvar conteúdo.</p>
+                </div>
+             }
           </div>
        }
 
@@ -152,10 +254,9 @@
 
   }
   
-  <!-- Inputs Ocultos -->
   <input type="file" id="avatarInput" class="hidden" accept="image/png, image/jpeg, image/webp" (change)="onFileSelected($event, 'avatar')">
+  <input type="file" id="bannerInput" class="hidden" accept="image/png, image/jpeg, image/webp" (change)="onFileSelected($event, 'banner')">
   
-  <!-- CROP MODAL -->
   @if (showCropper()) {
      <app-image-cropper-modal
         [imageBase64]="tempImage()"
@@ -164,5 +265,13 @@
         (saveImage)="onCropComplete($event)"
         (cancel)="cancelCrop()">
      </app-image-cropper-modal>
+  }
+
+  @if (showUserList()) {
+     <app-user-list-modal 
+        [type]="showUserList()!" 
+        [users]="showUserList() === 'followers' ? followersList() : followingList()"
+        (close)="showUserList.set(null)">
+     </app-user-list-modal>
   }
 </div>

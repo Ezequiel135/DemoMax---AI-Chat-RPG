@@ -9,6 +9,7 @@ import { AuthService } from '../../services/auth.service';
 import { EconomyService } from '../../services/economy.service';
 import { ToastService } from '../../services/toast.service';
 import { StorageService } from '../../services/storage.service';
+import { DatabaseService } from '../../services/core/database.service'; // Injected DB
 import { HeaderComponent } from '../../components/header/header.component';
 
 @Component({
@@ -24,7 +25,7 @@ import { HeaderComponent } from '../../components/header/header.component';
         <div class="border-b-2 border-red-600 mb-8 pb-4 flex justify-between items-end">
           <div>
             <h1 class="text-4xl font-black text-red-600 tracking-tighter">GOD MODE // ADMIN PANEL</h1>
-            <p class="text-xs text-red-400 opacity-70">SYSTEM_OVERRIDE_ENABLED :: USER: EZEQUIEL</p>
+            <p class="text-xs text-red-400 opacity-70">SYSTEM_OVERRIDE_ENABLED :: REAL DB ACCESS</p>
           </div>
           <div class="flex gap-2">
              <button (click)="activeTab.set('chars')" [class.bg-red-600]="activeTab() === 'chars'" class="px-4 py-2 border border-red-600 rounded hover:bg-red-900 transition-colors text-xs font-bold">Characters</button>
@@ -60,7 +61,7 @@ import { HeaderComponent } from '../../components/header/header.component';
                           <td class="p-4">
                              <div class="flex items-center gap-2">
                                 <input type="number" [(ngModel)]="char.affinity" class="w-16 bg-black border border-red-900 px-2 py-1 text-center">
-                                <button (click)="saveChar(char)" class="text-green-500 hover:text-green-400">💾</button>
+                                <button (click)="saveChar(char)" class="text-green-500 hover:text-green-400" title="Force Save">💾</button>
                              </div>
                           </td>
                           <td class="p-4">
@@ -103,8 +104,7 @@ import { HeaderComponent } from '../../components/header/header.component';
         <!-- USERS MANAGEMENT -->
         @if (activeTab() === 'users') {
            <div class="bg-red-900/5 p-6 rounded-xl border border-red-900/20 text-center">
-              <h3 class="text-xl font-bold text-white mb-4">User Database Simulation</h3>
-              <p class="text-slate-400 mb-6">Currently manipulating local storage user session. In a real backend, this would list all users.</p>
+              <h3 class="text-xl font-bold text-white mb-4">User Database</h3>
               
               <div class="max-w-md mx-auto bg-black p-6 rounded-xl border border-white/10">
                  <h4 class="text-sm uppercase font-bold text-slate-500 mb-4">Current Active Session</h4>
@@ -148,11 +148,11 @@ import { HeaderComponent } from '../../components/header/header.component';
               <!-- Storage God -->
               <div class="bg-black/50 border border-blue-500/30 p-6 rounded-xl relative overflow-hidden">
                  <div class="absolute inset-0 bg-blue-500/5 pointer-events-none"></div>
-                 <h3 class="text-blue-500 font-black text-2xl mb-4 font-tech uppercase">Storage Manager</h3>
+                 <h3 class="text-blue-500 font-black text-2xl mb-4 font-tech uppercase">Database Manager</h3>
                  
                  <div class="space-y-4 relative z-10">
                     <button (click)="clearAllChats()" class="w-full py-4 bg-blue-600/20 border border-blue-500 hover:bg-blue-500 hover:text-black text-blue-200 font-bold uppercase tracking-widest transition-all">
-                       Wipe All Chat Histories
+                       Wipe All Chat Histories (DB)
                     </button>
                     <button (click)="nukeEverything()" class="w-full py-4 bg-red-600 text-white font-black uppercase tracking-widest hover:scale-105 transition-transform shadow-[0_0_30px_rgba(220,38,38,0.5)]">
                        ⚠ FACTORY RESET APP ⚠
@@ -175,25 +175,22 @@ export class AdminPanelComponent {
   economy = inject(EconomyService);
   toast = inject(ToastService);
   storage = inject(StorageService);
+  db = inject(DatabaseService);
 
   activeTab = signal<'chars' | 'novels' | 'users' | 'system'>('chars');
 
   // --- ACTIONS ---
 
   deleteChar(id: string) {
-    if(confirm('GOD MODE: Permanently erase this entity?')) {
-       // Force delete by accessing internal update mechanism via service public method hack
-       // Since the service logic usually checks creator ID, and we are Master (Ezequiel), 
-       // the AuthService.isMaster() should already allow this in `canEdit`.
+    if(confirm('GOD MODE: Permanently erase this entity from DB?')) {
        this.charService.deleteCharacter(id);
        this.toast.show("Entity Erased.", "success");
     }
   }
 
   saveChar(char: any) {
-    // Hacky update: re-add character to update it
     this.charService.addCharacter(char);
-    this.toast.show("Entity Updated.", "success");
+    this.toast.show("Entity Updated & Persisted.", "success");
   }
 
   deleteVn(id: string) {
@@ -207,6 +204,7 @@ export class AdminPanelComponent {
     if(confirm('NUCLEAR OPTION: This will delete the user account and data locally.')) {
        this.auth.logout();
        this.storage.removeItem('demomax_user_v1');
+       this.db.clearCollection('user_data');
        location.reload();
     }
   }
@@ -218,19 +216,29 @@ export class AdminPanelComponent {
 
   resetEconomy() {
     this.storage.removeItem('demomax_eco_v2');
-    location.reload();
-  }
-
-  clearAllChats() {
-    // This requires knowing keys or clearing everything starting with 'demomax_chat_'
-    // Since StorageService doesn't expose getAllKeys, we might need to clear all local storage or implement a clear method
-    localStorage.clear(); // Extreme but effective for "God Mode" factory reset
-    this.toast.show("Memory Banks Wiped.", "info");
+    this.toast.show("Economy Reset. Reloading...", "info");
     setTimeout(() => location.reload(), 1000);
   }
 
-  nukeEverything() {
-    if(confirm('ARE YOU SURE? THIS IS A FULL WIPE.')) {
+  async clearAllChats() {
+    if(confirm('Clear ALL chat history for everyone?')) {
+       // Clear local storage legacy
+       localStorage.clear(); 
+       // Clear Real DB
+       await this.db.clearCollection('dm_messages');
+       await this.db.clearCollection('dm_chats_v1');
+       
+       this.toast.show("Memory Banks Wiped.", "info");
+       setTimeout(() => location.reload(), 1500);
+    }
+  }
+
+  async nukeEverything() {
+    if(confirm('⚠ FACTORY RESET: DELETE ALL DATABASES? ⚠')) {
+      const stores = ['characters_v1', 'visual_novels_v1', 'web_novels_v1', 'dm_chats_v1', 'dm_messages', 'user_data'];
+      for (const store of stores) {
+         await this.db.clearCollection(store);
+      }
       localStorage.clear();
       location.href = '/splash';
     }

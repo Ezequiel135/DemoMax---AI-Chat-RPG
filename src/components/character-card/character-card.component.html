@@ -19,9 +19,9 @@
     </div>
   }
 
-  <!-- Image with "Breathing" Zoom & Parallax feel -->
+  <!-- Image with "Breathing" Zoom & Parallax feel & FALLBACK -->
   <div class="absolute inset-0 overflow-hidden">
-    <img [src]="character().coverUrl" alt="Cover" 
+    <img [src]="character().coverUrl || 'https://i.ibb.co/hxSz0SJr/Background-Eraser-20251224-125356967.png'" alt="Cover" 
          loading="lazy"
          class="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110 group-hover:rotate-1">
   </div>

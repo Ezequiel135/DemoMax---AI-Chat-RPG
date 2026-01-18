@@ -108,6 +108,7 @@ export class SearchComponent {
   recentSearches = signal<string[]>([]);
 
   constructor() {
+    this.charService.initializeData(); // Ensure data is loaded
     this.showNSFW.set(this.auth.currentUser()?.showNSFW ?? false);
     const history = this.storage.getItem<string[]>('search_history');
     if (history) this.recentSearches.set(history);
@@ -118,6 +119,7 @@ export class SearchComponent {
     const rarity = this.filterRarity();
     const allowNSFW = this.showNSFW();
     
+    // Access the signal directly to ensure reactivity
     let chars = this.charService.allCharacters();
 
     if (!allowNSFW) {
@@ -132,9 +134,12 @@ export class SearchComponent {
       chars = chars.filter(c => 
          c.name.toLowerCase().includes(q) || 
          c.tags.some(t => t.toLowerCase().includes(q)) ||
-         c.creator.toLowerCase().includes(q)
+         c.creator.toLowerCase().includes(q) ||
+         c.description.toLowerCase().includes(q)
       );
     } else {
+      // If no search query, show nothing (or recommendations)
+      // Showing nothing as per "Search" UX usually
       if (rarity === 'All') return [];
     }
 

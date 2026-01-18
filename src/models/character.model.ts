@@ -1,7 +1,20 @@
 
+export interface LifeStatus {
+  isAlive: boolean;
+  causeOfDeath?: string; // e.g., "Car Accident", "Old Age", "Illness"
+  deathDate?: number;
+
+  healthCondition: 'Healthy' | 'Sick' | 'Hospitalized' | 'Terminal';
+  illnessName?: string; // "Flu", "Cancer", "Magic Curse"
+  
+  isPregnant: boolean;
+  pregnancyWeeks: number; // 0 to 40
+  childrenCount: number;
+}
+
 export interface Character {
   id: string;
-  creatorId?: string; // ID do dono (opcional para manter compatibilidade com mocks antigos)
+  creatorId?: string; 
   name: string;
   tagline: string;
   description: string;
@@ -9,17 +22,23 @@ export interface Character {
   coverUrl: string;
   systemInstruction: string;
   rarity: 'Common' | 'Rare' | 'Legendary';
-  affinity: number; // 0-100
+  affinity: number; 
+  initialAffinity?: number; // New: Configured by creator
   tags: string[];
-  // Social & Feed Stats
-  creator: string; // @username para exibição
-  messageCount: string; // e.g. "12.5k"
-  favoriteCount: string; // e.g. "3.4k"
-  isTrending?: boolean; // Hot 🔥
-  isNew?: boolean; // New Arrival
-  isNSFW?: boolean; // Content Filter Flag
-  pixKey?: string; // New: Creator's PIX key for donations
   
-  // AI Configuration
+  creator: string; 
+  messageCount: string; 
+  favoriteCount: string; 
+  isTrending?: boolean; 
+  isNew?: boolean; 
+  isNSFW?: boolean; 
+  pixKey?: string; 
+  
   modelConfig?: 'Standard' | 'Deep Thought' | 'Creative'; 
+  gender?: 'Female' | 'Male' | 'Other'; // Added Gender
+  
+  firstMessage?: string; 
+
+  // New Life Simulation Data
+  lifeStatus?: LifeStatus;
 }

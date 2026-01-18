@@ -1,7 +1,7 @@
 
-import { Component, inject, signal } from '@angular/core';
+import { Component, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
-import { Router, RouterLink } from '@angular/router';
+import { RouterLink, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
 import { AuthService } from '../../services/auth.service';
 import { ToastService } from '../../services/toast.service';
@@ -26,8 +26,6 @@ import { BackgroundComponent } from '../../components/visual/background.componen
         </div>
 
         <form (submit)="onSubmit($event)" class="space-y-6">
-          
-          <!-- Email -->
           <div class="space-y-2">
             <label class="text-xs uppercase font-bold text-slate-500 tracking-wider">Email</label>
             <input type="email" [(ngModel)]="email" name="email" required
@@ -35,7 +33,6 @@ import { BackgroundComponent } from '../../components/visual/background.componen
                    placeholder="agent@demomax.ai">
           </div>
 
-          <!-- Password -->
           <div class="space-y-2">
             <div class="flex justify-between">
                <label class="text-xs uppercase font-bold text-slate-500 tracking-wider">Password</label>
@@ -62,7 +59,6 @@ import { BackgroundComponent } from '../../components/visual/background.componen
   `
 })
 export class LoginComponent {
-  router = inject(Router);
   auth = inject(AuthService);
   toast = inject(ToastService);
 
@@ -71,15 +67,14 @@ export class LoginComponent {
 
   onSubmit(e: Event) {
     e.preventDefault();
-
     if (this.auth.login(this.email, this.password)) {
-      if (this.email === 'ezequiel@gmail.com') {
+      if (this.email.toLowerCase().includes('ezequiel')) {
          this.toast.show("⚡ GOD MODE ACTIVATED ⚡", "success");
       } else {
-         this.toast.show("Welcome back, Agent.", "success");
+         this.toast.show("Welcome back!", "success");
       }
     } else {
-      this.toast.show("Invalid credentials. Try 'demo@demomax.ai' / 'password'", "error");
+      this.toast.show("Credenciais inválidas. Tente 'demo@demomax.ai' / 'password'", "error");
     }
   }
 }

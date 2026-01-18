@@ -4,6 +4,7 @@ import { StorageService } from './storage.service';
 import { EconomyService } from './economy.service';
 import { ToastService } from './toast.service';
 import { MissionState } from '../models/economy.model';
+import { hasDayChanged } from '../logic/core/daily-reset.logic';
 
 @Injectable({
   providedIn: 'root'
@@ -36,7 +37,6 @@ export class MissionService {
     });
   }
 
-  // Helper for PermissionService
   getDailyMessages(): number {
     this.checkDailyReset();
     return this.state().dailyMessagesSent;
@@ -56,7 +56,6 @@ export class MissionService {
   private checkCompletion() {
     const s = this.state();
     if (s.dailyMessagesSent >= this.DAILY_MSG_GOAL && !s.dailyMissionClaimed) {
-      // Claim Reward
       this.state.update(curr => ({ ...curr, dailyMissionClaimed: true }));
       this.economy.earnCoins(this.MISSION_REWARD);
       this.toast.show(`Mission Complete: 50 Messages! +${this.MISSION_REWARD} Sakura Coins`, 'success');
@@ -64,14 +63,10 @@ export class MissionService {
   }
 
   private checkDailyReset() {
-    const lastDate = new Date(this.state().lastMissionDate || 0);
-    const now = new Date();
-    
-    // Check if different day
-    if (lastDate.getDate() !== now.getDate() || lastDate.getMonth() !== now.getMonth()) {
+    if (hasDayChanged(this.state().lastMissionDate)) {
       this.state.set({
         dailyMessagesSent: 0,
-        lastMissionDate: now.toISOString(),
+        lastMissionDate: new Date().toISOString(),
         dailyMissionClaimed: false
       });
     }

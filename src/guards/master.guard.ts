@@ -13,6 +13,6 @@ export const masterGuard: CanActivateFn = (route, state) => {
     return true;
   }
 
-  toast.show("ACCESS DENIED: God Mode Required.", "error");
+  toast.show("ACESSO NEGADO: Requer God Mode.", "error");
   return router.parseUrl('/home');
 };

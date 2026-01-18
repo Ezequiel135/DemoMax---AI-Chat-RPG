@@ -7,8 +7,6 @@ import { StreakState, RewardTier } from '../models/economy.model';
 })
 export class DailyRewardsService {
 
-  // Configuration: 7 Day Cycle
-  // Spec: Login diário (+10)
   private readonly REWARDS: RewardTier[] = [
     { day: 1, sakuraCoins: 10, xp: 25 },
     { day: 2, sakuraCoins: 10, xp: 30 },
@@ -20,7 +18,6 @@ export class DailyRewardsService {
   ];
 
   getRewardForDay(day: number): RewardTier {
-    // Cycle wraps around 7
     const index = (day - 1) % this.REWARDS.length;
     return this.REWARDS[index];
   }
@@ -31,7 +28,6 @@ export class DailyRewardsService {
     const last = new Date(lastClaimDate);
     const now = new Date();
     
-    // Reset time to midnight for accurate day comparison
     last.setHours(0,0,0,0);
     now.setHours(0,0,0,0);
 
@@ -57,10 +53,8 @@ export class DailyRewardsService {
     let newStreak = currentState.currentStreak;
 
     if (diffDays === 1) {
-      // Consecutive day
       newStreak++;
     } else if (diffDays > 1) {
-      // Broken streak
       newStreak = 1;
     }
 
